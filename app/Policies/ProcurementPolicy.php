@@ -22,6 +22,11 @@ class ProcurementPolicy
         return $user->can('procurements.create');
     }
 
+    public function publish(User $user): bool
+    {
+        return $user->getAllPermissions()->contains('name', 'procurements.publish');
+    }
+
     public function update(User $user, Procurement $procurement): bool
     {
         return $user->can('procurements.update');

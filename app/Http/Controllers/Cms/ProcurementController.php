@@ -3,11 +3,15 @@
 namespace App\Http\Controllers\Cms;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\FilterProcurementsRequest;
 use App\Http\Requests\StoreProcurementRequest;
 use App\Http\Requests\UpdateProcurementRequest;
+use App\Http\Requests\UpdateProcurementWorkflowRequest;
 use App\Models\AuditLog;
 use App\Models\Procurement;
 use App\Models\ProcurementTranslation;
+use App\Models\User;
+use App\Support\ContentBlocks\ContentBlockRenderer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,12 +20,15 @@ use Inertia\Response;
 
 class ProcurementController extends Controller
 {
-    public function index(): Response
+    public function index(FilterProcurementsRequest $request): Response
     {
         $this->authorize('viewAny', Procurement::class);
 
+        $filters = $request->validated();
+
         $procurements = Procurement::query()
             ->with('translations')
+            ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
             ->orderByDesc('published_at')
             ->orderByDesc('updated_at')
             ->get()
@@ -42,15 +49,20 @@ class ProcurementController extends Controller
 
         return Inertia::render('cms/procurements/index', [
             'procurements' => $procurements,
+            'filters' => [
+                'status' => $filters['status'] ?? null,
+            ],
             'status' => session('status'),
         ]);
     }
 
-    public function create(): Response
+    public function create(Request $request): Response
     {
         $this->authorize('create', Procurement::class);
 
-        return Inertia::render('cms/procurements/create');
+        return Inertia::render('cms/procurements/create', [
+            'availableStatuses' => $this->availableStatuses($request->user()),
+        ]);
     }
 
     public function store(StoreProcurementRequest $request): RedirectResponse
@@ -103,11 +115,14 @@ class ProcurementController extends Controller
                         'slug' => $translation->slug,
                         'summary' => $translation->summary,
                         'content' => $translation->content,
+                        'content_blocks' => $translation->content_blocks,
                         'seo_title' => $translation->seo_title,
                         'seo_description' => $translation->seo_description,
                     ]]
                 ),
             ],
+            'availableStatuses' => $this->availableStatuses(request()->user()),
+            'canPublish' => request()->user()?->getAllPermissions()->contains('name', 'procurements.publish') ?? false,
             'status' => session('status'),
         ]);
     }
@@ -115,8 +130,7 @@ class ProcurementController extends Controller
     public function update(
         UpdateProcurementRequest $request,
         Procurement $procurement,
-    ): RedirectResponse
-    {
+    ): RedirectResponse {
         DB::transaction(function () use ($request, $procurement): void {
             $oldValues = $procurement->fresh()->toArray();
 
@@ -141,8 +155,7 @@ class ProcurementController extends Controller
     public function destroy(
         Request $request,
         Procurement $procurement,
-    ): RedirectResponse
-    {
+    ): RedirectResponse {
         $this->authorize('delete', $procurement);
 
         $oldValues = $procurement->toArray();
@@ -152,6 +165,36 @@ class ProcurementController extends Controller
         $this->recordAudit($request, 'deleted', $procurement, $oldValues, null);
 
         return to_route('cms.procurements.index')->with('status', 'procurement-deleted');
+    }
+
+    public function workflow(UpdateProcurementWorkflowRequest $request, Procurement $procurement): RedirectResponse
+    {
+        $procurementId = $request->route('procurement') instanceof Procurement
+            ? $request->route('procurement')->getKey()
+            : $request->route('procurement');
+
+        $procurement = Procurement::query()->findOrFail($procurementId);
+        $oldValues = $procurement->toArray();
+        $status = $request->string('status')->toString();
+
+        Procurement::query()->whereKey($procurement->getKey())->update([
+            'status' => $status,
+            'published_at' => in_array($status, ['open', 'closed', 'awarded'], true)
+                ? ($procurement->published_at ?? now())
+                : $procurement->published_at,
+            'archived_at' => $status === 'archived' ? now() : null,
+            'updated_by' => $request->user()->id,
+        ]);
+
+        $this->recordAudit(
+            $request,
+            'workflow-updated',
+            $procurement,
+            $oldValues,
+            $procurement->refresh()->toArray(),
+        );
+
+        return back()->with('status', 'procurement-workflow-updated');
     }
 
     /**
@@ -168,7 +211,9 @@ class ProcurementController extends Controller
                     'title' => $translation['title'],
                     'slug' => $translation['slug'],
                     'summary' => $translation['summary'] ?? null,
-                    'content' => $translation['content'] ?? null,
+                    'content' => ContentBlockRenderer::toHtml($translation['content_blocks'] ?? [])
+                        ?? ($translation['content'] ?? null),
+                    'content_blocks' => ContentBlockRenderer::normalize($translation['content_blocks'] ?? []),
                     'seo_title' => $translation['seo_title'] ?? null,
                     'seo_description' => $translation['seo_description'] ?? null,
                 ],
@@ -180,15 +225,41 @@ class ProcurementController extends Controller
         Procurement $procurement,
         Request $request,
     ): void {
-        if (! $request->hasFile('attachments')) {
-            return;
+        $attachmentIdsToRemove = collect($request->validated('remove_attachment_ids', []))
+            ->map(fn (mixed $id): int => (int) $id)
+            ->all();
+
+        if ($attachmentIdsToRemove !== []) {
+            $procurement->media()
+                ->whereIn('id', $attachmentIdsToRemove)
+                ->where('collection_name', 'attachments')
+                ->get()
+                ->each
+                ->delete();
         }
 
-        $procurement->clearMediaCollection('attachments');
-
-        foreach ($request->file('attachments') as $attachment) {
-            $procurement->addMedia($attachment)->toMediaCollection('attachments');
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $attachment) {
+                $procurement->addMedia($attachment)->toMediaCollection('attachments');
+            }
         }
+    }
+
+    /**
+     * @return array<int, array{value:string,label:string}>
+     */
+    protected function availableStatuses(?User $user): array
+    {
+        $statuses = $user?->getAllPermissions()->contains('name', 'procurements.publish')
+            ? ['planned', 'open', 'closed', 'awarded', 'cancelled', 'archived']
+            : ['planned'];
+
+        return collect($statuses)
+            ->map(fn (string $status): array => [
+                'value' => $status,
+                'label' => str($status)->replace('_', ' ')->title()->value(),
+            ])
+            ->all();
     }
 
     protected function recordAudit(

@@ -22,6 +22,11 @@ class DocumentPolicy
         return $user->can('documents.create');
     }
 
+    public function publish(User $user): bool
+    {
+        return $user->getAllPermissions()->contains('name', 'documents.publish');
+    }
+
     public function update(User $user, Document $document): bool
     {
         return $user->can('documents.update');

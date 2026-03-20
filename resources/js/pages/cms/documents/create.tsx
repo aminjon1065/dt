@@ -24,9 +24,11 @@ const breadcrumbs: BreadcrumbItem[] = [
 export default function CreateDocument({
     categories,
     tags,
+    availableStatuses,
 }: {
     categories: SelectOption[];
     tags: SelectOption[];
+    availableStatuses: Array<{ value: string; label: string }>;
 }) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -44,6 +46,7 @@ export default function CreateDocument({
                     action={store.form()}
                     categories={categories}
                     tags={tags}
+                    availableStatuses={availableStatuses}
                     submitLabel="Create document"
                 />
             </div>

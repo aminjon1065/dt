@@ -3,13 +3,17 @@
 namespace App\Http\Controllers\Cms;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\FilterDocumentsRequest;
 use App\Http\Requests\StoreDocumentRequest;
 use App\Http\Requests\UpdateDocumentRequest;
+use App\Http\Requests\UpdateDocumentWorkflowRequest;
 use App\Models\AuditLog;
 use App\Models\Document;
 use App\Models\DocumentCategory;
 use App\Models\DocumentTag;
 use App\Models\DocumentTranslation;
+use App\Models\User;
+use App\Support\ContentBlocks\ContentBlockRenderer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,16 +22,19 @@ use Inertia\Response;
 
 class DocumentController extends Controller
 {
-    public function index(): Response
+    public function index(FilterDocumentsRequest $request): Response
     {
         $this->authorize('viewAny', Document::class);
 
+        $filters = $request->validated();
+
         $documents = Document::query()
             ->with(['category.translations', 'tags.translations', 'translations'])
+            ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
             ->orderByDesc('published_at')
             ->orderByDesc('updated_at')
             ->get()
-            ->map(fn(Document $document): array => [
+            ->map(fn (Document $document): array => [
                 'id' => $document->id,
                 'status' => $document->status,
                 'file_type' => $document->file_type,
@@ -35,10 +42,10 @@ class DocumentController extends Controller
                 'published_at' => $document->published_at?->toIso8601String(),
                 'category' => $document->category->translation('en')?->name ?? $document->category->slug,
                 'tags' => $document->tags->map(
-                    fn(DocumentTag $tag): string => $tag->translation('en')?->name ?? $tag->slug
+                    fn (DocumentTag $tag): string => $tag->translation('en')?->name ?? $tag->slug
                 )->values()->all(),
                 'translations' => $document->translations->mapWithKeys(
-                    fn(DocumentTranslation $translation) => [$translation->locale => [
+                    fn (DocumentTranslation $translation) => [$translation->locale => [
                         'title' => $translation->title,
                         'slug' => $translation->slug,
                     ]]
@@ -48,22 +55,28 @@ class DocumentController extends Controller
 
         return Inertia::render('cms/documents/index', [
             'documents' => $documents,
+            'filters' => [
+                'status' => $filters['status'] ?? null,
+            ],
             'status' => session('status'),
         ]);
     }
 
-    public function create(): Response
+    public function create(Request $request): Response
     {
         $this->authorize('create', Document::class);
 
         return Inertia::render('cms/documents/create', [
             'categories' => $this->categories(),
             'tags' => $this->tags(),
+            'availableStatuses' => $this->availableStatuses($request->user()),
         ]);
     }
 
     public function store(StoreDocumentRequest $request): RedirectResponse
     {
+        $this->ensurePublishableStatus($request);
+
         $document = DB::transaction(function () use ($request): Document {
             $document = Document::query()->create([
                 'document_category_id' => $request->validated('document_category_id'),
@@ -92,6 +105,7 @@ class DocumentController extends Controller
         $this->authorize('update', $document);
 
         $document->load(['translations', 'tags', 'category']);
+        $currentFile = $document->getFirstMedia('documents');
 
         return Inertia::render('cms/documents/edit', [
             'document' => [
@@ -104,25 +118,37 @@ class DocumentController extends Controller
                 'archived_at' => $document->archived_at?->format('Y-m-d\\TH:i'),
                 'tag_ids' => $document->tags->pluck('id')->all(),
                 'file_url' => $document->getFirstMediaUrl('documents') ?: null,
+                'current_file' => $currentFile ? [
+                    'id' => $currentFile->id,
+                    'name' => $currentFile->name,
+                    'url' => $currentFile->getUrl(),
+                ] : null,
                 'translations' => $document->translations->mapWithKeys(
-                    fn(DocumentTranslation $translation) => [$translation->locale => [
+                    fn (DocumentTranslation $translation) => [$translation->locale => [
                         'title' => $translation->title,
                         'slug' => $translation->slug,
                         'summary' => $translation->summary,
+                        'content' => $translation->content,
+                        'content_blocks' => $translation->content_blocks,
+                        'seo_title' => $translation->seo_title,
+                        'seo_description' => $translation->seo_description,
                     ]]
                 ),
             ],
             'categories' => $this->categories(),
             'tags' => $this->tags(),
+            'availableStatuses' => $this->availableStatuses(request()->user()),
+            'canPublish' => request()->user()?->getAllPermissions()->contains('name', 'documents.publish') ?? false,
             'status' => session('status'),
         ]);
     }
 
     public function update(
         UpdateDocumentRequest $request,
-        Document              $document,
-    ): RedirectResponse
-    {
+        Document $document,
+    ): RedirectResponse {
+        $this->ensurePublishableStatus($request);
+
         DB::transaction(function () use ($request, $document): void {
             $oldValues = $document->fresh()->toArray();
 
@@ -158,8 +184,32 @@ class DocumentController extends Controller
         return to_route('cms.documents.index')->with('status', 'document-deleted');
     }
 
+    public function workflow(UpdateDocumentWorkflowRequest $request, Document $document): RedirectResponse
+    {
+        $documentId = $request->route('document') instanceof Document
+            ? $request->route('document')->getKey()
+            : $request->route('document');
+
+        $document = Document::query()->findOrFail($documentId);
+        $oldValues = $document->toArray();
+        $status = $request->string('status')->toString();
+
+        Document::query()->whereKey($document->getKey())->update([
+            'status' => $status,
+            'published_at' => $status === 'published'
+                ? ($document->published_at ?? now())
+                : $document->published_at,
+            'archived_at' => $status === 'archived' ? now() : null,
+            'updated_by' => $request->user()->id,
+        ]);
+
+        $this->recordAudit($request, 'workflow-updated', $document, $oldValues, $document->refresh()->toArray());
+
+        return back()->with('status', 'document-workflow-updated');
+    }
+
     /**
-     * @param array<string, array<string, mixed>> $translations
+     * @param  array<string, array<string, mixed>>  $translations
      */
     protected function syncTranslations(Document $document, array $translations): void
     {
@@ -170,6 +220,11 @@ class DocumentController extends Controller
                     'title' => $translation['title'],
                     'slug' => $translation['slug'],
                     'summary' => $translation['summary'] ?? null,
+                    'content' => ContentBlockRenderer::toHtml($translation['content_blocks'] ?? [])
+                        ?? ($translation['content'] ?? null),
+                    'content_blocks' => ContentBlockRenderer::normalize($translation['content_blocks'] ?? []),
+                    'seo_title' => $translation['seo_title'] ?? null,
+                    'seo_description' => $translation['seo_description'] ?? null,
                 ],
             );
         }
@@ -177,12 +232,23 @@ class DocumentController extends Controller
 
     protected function syncFile(Document $document, Request $request): void
     {
-        if (!$request->hasFile('file')) {
-            return;
+        if ($request->boolean('remove_file')) {
+            $document->clearMediaCollection('documents');
         }
 
-        $document->clearMediaCollection('documents');
-        $document->addMediaFromRequest('file')->toMediaCollection('documents');
+        if ($request->hasFile('file')) {
+            $document->clearMediaCollection('documents');
+            $document->addMediaFromRequest('file')->toMediaCollection('documents');
+        }
+    }
+
+    protected function ensurePublishableStatus(Request $request): void
+    {
+        if (
+            in_array($request->input('status'), ['published', 'archived'], true)
+        ) {
+            $this->authorize('publish', Document::class);
+        }
     }
 
     /**
@@ -195,7 +261,7 @@ class DocumentController extends Controller
             ->where('is_active', true)
             ->orderBy('slug')
             ->get()
-            ->map(fn(DocumentCategory $category): array => [
+            ->map(fn (DocumentCategory $category): array => [
                 'id' => $category->id,
                 'name' => $category->translation('en')?->name ?? $category->slug,
             ])
@@ -211,21 +277,37 @@ class DocumentController extends Controller
             ->with('translations')
             ->orderBy('slug')
             ->get()
-            ->map(fn(DocumentTag $tag): array => [
+            ->map(fn (DocumentTag $tag): array => [
                 'id' => $tag->id,
                 'name' => $tag->translation('en')?->name ?? $tag->slug,
             ])
             ->all();
     }
 
-    protected function recordAudit(
-        Request  $request,
-        string   $event,
-        Document $document,
-        ?array   $oldValues,
-        ?array   $newValues,
-    ): void
+    /**
+     * @return array<int, array{value:string,label:string}>
+     */
+    protected function availableStatuses(?User $user): array
     {
+        $statuses = $user?->getAllPermissions()->contains('name', 'documents.publish')
+            ? ['draft', 'in_review', 'published', 'archived']
+            : ['draft', 'in_review'];
+
+        return collect($statuses)
+            ->map(fn (string $status): array => [
+                'value' => $status,
+                'label' => str($status)->replace('_', ' ')->title()->value(),
+            ])
+            ->all();
+    }
+
+    protected function recordAudit(
+        Request $request,
+        string $event,
+        Document $document,
+        ?array $oldValues,
+        ?array $newValues,
+    ): void {
         AuditLog::query()->create([
             'user_id' => $request->user()?->id,
             'event' => $event,

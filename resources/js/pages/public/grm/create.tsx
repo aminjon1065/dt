@@ -113,8 +113,12 @@ export default function PublicGrmCreate({
                                     <textarea
                                         id="message"
                                         name="message"
+                                        aria-describedby="grm-message-help"
                                         className="border-input focus-visible:border-ring focus-visible:ring-ring/50 min-h-40 rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-[3px]"
                                     />
+                                    <p id="grm-message-help" className="text-sm text-stone-500">
+                                        Share enough detail for review, but avoid sensitive information unless necessary.
+                                    </p>
                                     <InputError message={errors.message} />
                                 </div>
 

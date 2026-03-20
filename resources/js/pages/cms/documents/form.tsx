@@ -1,14 +1,21 @@
 import { Form } from '@inertiajs/react';
+import BlockEditor from '@/components/cms/block-editor';
+import MediaManager from '@/components/cms/media-manager';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import type { ContentBlock } from '@/lib/content-blocks';
 
 type TranslationFields = {
     title: string;
     slug: string;
     summary?: string | null;
+    content?: string | null;
+    content_blocks?: ContentBlock[] | null;
+    seo_title?: string | null;
+    seo_description?: string | null;
 };
 
 type DocumentFormData = {
@@ -20,6 +27,11 @@ type DocumentFormData = {
     archived_at: string | null;
     tag_ids: number[];
     file_url?: string | null;
+    current_file?: {
+        id: number;
+        name: string;
+        url: string;
+    } | null;
     translations: Record<'en' | 'tj' | 'ru', TranslationFields>;
 };
 
@@ -32,6 +44,7 @@ type Props = {
     action: any;
     categories: SelectOption[];
     tags: SelectOption[];
+    availableStatuses: Array<{ value: string; label: string }>;
     document?: DocumentFormData;
     submitLabel: string;
 };
@@ -42,6 +55,7 @@ export default function DocumentForm({
     action,
     categories,
     tags,
+    availableStatuses,
     document,
     submitLabel,
 }: Props) {
@@ -92,9 +106,11 @@ export default function DocumentForm({
                                     defaultValue={document?.status ?? 'draft'}
                                     className="border-input focus-visible:border-ring focus-visible:ring-ring/50 rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-[3px]"
                                 >
-                                    <option value="draft">Draft</option>
-                                    <option value="published">Published</option>
-                                    <option value="archived">Archived</option>
+                                    {availableStatuses.map((statusOption) => (
+                                        <option key={statusOption.value} value={statusOption.value}>
+                                            {statusOption.label}
+                                        </option>
+                                    ))}
                                 </select>
                                 <InputError message={errors.status} />
                             </div>
@@ -112,21 +128,21 @@ export default function DocumentForm({
                                 <InputError message={errors.file_type} />
                             </div>
 
-                            <div className="grid gap-2">
-                                <Label htmlFor="file">File</Label>
-                                <Input id="file" name="file" type="file" />
-                                {document?.file_url && (
-                                    <a
-                                        href={document.file_url}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="text-sm underline"
-                                    >
-                                        Open current file
-                                    </a>
-                                )}
-                                <InputError message={errors.file} />
-                            </div>
+                            <MediaManager
+                                inputId="file"
+                                inputName="file"
+                                label="File"
+                                currentLabel="Current file"
+                                existingItems={
+                                    document?.current_file
+                                        ? [document.current_file]
+                                        : []
+                                }
+                                removeInputName="remove_file"
+                                removeInputType="boolean"
+                                error={errors.file}
+                                removeError={errors.remove_file}
+                            />
                         </div>
 
                         <div className="grid gap-2 md:grid-cols-3 md:gap-4">
@@ -256,6 +272,59 @@ export default function DocumentForm({
                                         errors[`translations.${locale}.summary`]
                                     }
                                 />
+                            </div>
+
+                            <div className="grid gap-2">
+                                <BlockEditor
+                                    name={`translations[${locale}][content_blocks]`}
+                                    label={`Document description (${locale.toUpperCase()})`}
+                                    initialValue={document?.translations[locale]?.content_blocks ?? undefined}
+                                    legacyContent={document?.translations[locale]?.content ?? ''}
+                                />
+                                <InputError
+                                    message={
+                                        errors[`translations.${locale}.content_blocks`]
+                                    }
+                                />
+                            </div>
+
+                            <div className="grid gap-2 md:grid-cols-2 md:gap-4">
+                                <div className="grid gap-2">
+                                    <Label htmlFor={`translations.${locale}.seo_title`}>
+                                        SEO title
+                                    </Label>
+                                    <Input
+                                        id={`translations.${locale}.seo_title`}
+                                        name={`translations[${locale}][seo_title]`}
+                                        defaultValue={
+                                            document?.translations[locale]?.seo_title ?? ''
+                                        }
+                                    />
+                                    <InputError
+                                        message={
+                                            errors[`translations.${locale}.seo_title`]
+                                        }
+                                    />
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor={`translations.${locale}.seo_description`}>
+                                        SEO description
+                                    </Label>
+                                    <textarea
+                                        id={`translations.${locale}.seo_description`}
+                                        name={`translations[${locale}][seo_description]`}
+                                        defaultValue={
+                                            document?.translations[locale]?.seo_description ?? ''
+                                        }
+                                        className="border-input focus-visible:border-ring focus-visible:ring-ring/50 min-h-24 rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-[3px]"
+                                    />
+                                    <InputError
+                                        message={
+                                            errors[`translations.${locale}.seo_description`]
+                                        }
+                                    />
+                                </div>
                             </div>
                         </div>
                     ))}

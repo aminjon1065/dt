@@ -16,7 +16,11 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function CreateProcurement() {
+export default function CreateProcurement({
+    availableStatuses,
+}: {
+    availableStatuses: Array<{ value: string; label: string }>;
+}) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Create procurement" />
@@ -34,6 +38,7 @@ export default function CreateProcurement() {
 
                 <ProcurementForm
                     action={store.form()}
+                    availableStatuses={availableStatuses}
                     submitLabel="Create procurement"
                 />
             </div>

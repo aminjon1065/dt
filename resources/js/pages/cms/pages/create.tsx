@@ -23,8 +23,10 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function CreatePage({
     parentPages,
+    availableStatuses,
 }: {
     parentPages: ParentPage[];
+    availableStatuses: Array<{ value: string; label: string }>;
 }) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -41,6 +43,7 @@ export default function CreatePage({
                 <PageForm
                     action={store.form()}
                     parentPages={parentPages}
+                    availableStatuses={availableStatuses}
                     submitLabel="Create page"
                 />
             </div>

@@ -2,9 +2,12 @@ import { Form, Head, Link } from '@inertiajs/react';
 import {
     destroy,
     update,
+    workflow,
 } from '@/actions/App/Http/Controllers/Cms/PageController';
+import WorkflowActions from '@/components/cms/workflow-actions';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
+import type { ContentBlock } from '@/lib/content-blocks';
 import PageForm from '@/pages/cms/pages/form';
 import { edit, index } from '@/routes/cms/pages';
 import type { BreadcrumbItem } from '@/types';
@@ -31,6 +34,7 @@ type PageFormData = {
             slug: string;
             summary?: string | null;
             content?: string | null;
+            content_blocks?: ContentBlock[] | null;
             seo_title?: string | null;
             seo_description?: string | null;
         }
@@ -51,12 +55,55 @@ const breadcrumbs = (pageId: number): BreadcrumbItem[] => [
 export default function EditPage({
     page,
     parentPages,
+    availableStatuses,
+    canPublish,
     status,
 }: {
     page: PageFormData;
     parentPages: ParentPage[];
+    availableStatuses: Array<{ value: string; label: string }>;
+    canPublish: boolean;
     status?: string;
 }) {
+    const workflowActions = [
+        ...(page.status !== 'draft'
+            ? [
+                  {
+                      label: 'Move to draft',
+                      status: 'draft' as const,
+                      variant: 'outline' as const,
+                  },
+              ]
+            : []),
+        ...(page.status !== 'in_review'
+            ? [
+                  {
+                      label: 'Send to review',
+                      status: 'in_review' as const,
+                      variant: 'secondary' as const,
+                  },
+              ]
+            : []),
+        ...(canPublish && page.status !== 'published'
+            ? [
+                  {
+                      label: 'Publish',
+                      status: 'published' as const,
+                      variant: 'default' as const,
+                  },
+              ]
+            : []),
+        ...(canPublish && page.status !== 'archived'
+            ? [
+                  {
+                      label: 'Archive',
+                      status: 'archived' as const,
+                      variant: 'outline' as const,
+                  },
+              ]
+            : []),
+    ];
+
     return (
         <AppLayout breadcrumbs={breadcrumbs(page.id)}>
             <Head title="Edit page" />
@@ -82,10 +129,16 @@ export default function EditPage({
                     </div>
                 )}
 
+                <WorkflowActions
+                    action={workflow.form(page.id)}
+                    actions={workflowActions}
+                />
+
                 <PageForm
                     action={update.form(page.id)}
                     page={page}
                     parentPages={parentPages}
+                    availableStatuses={availableStatuses}
                     submitLabel="Save changes"
                 />
 

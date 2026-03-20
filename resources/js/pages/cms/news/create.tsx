@@ -21,7 +21,13 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function CreateNews({ categories }: { categories: Category[] }) {
+export default function CreateNews({
+    categories,
+    availableStatuses,
+}: {
+    categories: Category[];
+    availableStatuses: Array<{ value: string; label: string }>;
+}) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Create news" />
@@ -37,6 +43,7 @@ export default function CreateNews({ categories }: { categories: Category[] }) {
                 <NewsForm
                     action={store.form()}
                     categories={categories}
+                    availableStatuses={availableStatuses}
                     submitLabel="Create news"
                 />
             </div>

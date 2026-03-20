@@ -31,6 +31,11 @@ class PagePolicy
         return $user->can('pages.create');
     }
 
+    public function publish(User $user): bool
+    {
+        return $user->getAllPermissions()->contains('name', 'pages.publish');
+    }
+
     /**
      * Determine whether the user can update the model.
      */

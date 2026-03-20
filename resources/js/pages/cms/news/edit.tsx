@@ -2,9 +2,12 @@ import { Form, Head, Link } from '@inertiajs/react';
 import {
     destroy,
     update,
+    workflow,
 } from '@/actions/App/Http/Controllers/Cms/NewsController';
+import WorkflowActions from '@/components/cms/workflow-actions';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
+import type { ContentBlock } from '@/lib/content-blocks';
 import NewsForm from '@/pages/cms/news/form';
 import { edit, index } from '@/routes/cms/news';
 import type { BreadcrumbItem } from '@/types';
@@ -29,6 +32,7 @@ type NewsFormData = {
             slug: string;
             summary?: string | null;
             content?: string | null;
+            content_blocks?: ContentBlock[] | null;
             seo_title?: string | null;
             seo_description?: string | null;
         }
@@ -49,12 +53,55 @@ const breadcrumbs = (newsId: number): BreadcrumbItem[] => [
 export default function EditNews({
     newsItem,
     categories,
+    availableStatuses,
+    canPublish,
     status,
 }: {
     newsItem: NewsFormData;
     categories: Category[];
+    availableStatuses: Array<{ value: string; label: string }>;
+    canPublish: boolean;
     status?: string;
 }) {
+    const workflowActions = [
+        ...(newsItem.status !== 'draft'
+            ? [
+                  {
+                      label: 'Move to draft',
+                      status: 'draft' as const,
+                      variant: 'outline' as const,
+                  },
+              ]
+            : []),
+        ...(newsItem.status !== 'in_review'
+            ? [
+                  {
+                      label: 'Send to review',
+                      status: 'in_review' as const,
+                      variant: 'secondary' as const,
+                  },
+              ]
+            : []),
+        ...(canPublish && newsItem.status !== 'published'
+            ? [
+                  {
+                      label: 'Publish',
+                      status: 'published' as const,
+                      variant: 'default' as const,
+                  },
+              ]
+            : []),
+        ...(canPublish && newsItem.status !== 'archived'
+            ? [
+                  {
+                      label: 'Archive',
+                      status: 'archived' as const,
+                      variant: 'outline' as const,
+                  },
+              ]
+            : []),
+    ];
+
     return (
         <AppLayout breadcrumbs={breadcrumbs(newsItem.id)}>
             <Head title="Edit news" />
@@ -79,9 +126,15 @@ export default function EditNews({
                     </div>
                 )}
 
+                <WorkflowActions
+                    action={workflow.form(newsItem.id)}
+                    actions={workflowActions}
+                />
+
                 <NewsForm
                     action={update.form(newsItem.id)}
                     categories={categories}
+                    availableStatuses={availableStatuses}
                     newsItem={newsItem}
                     submitLabel="Save changes"
                 />

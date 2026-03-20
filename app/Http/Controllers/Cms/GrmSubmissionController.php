@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Cms;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\FilterGrmSubmissionsRequest;
 use App\Http\Requests\StoreGrmSubmissionRequest;
 use App\Http\Requests\UpdateGrmSubmissionRequest;
+use App\Http\Requests\UpdateGrmSubmissionWorkflowRequest;
 use App\Models\AuditLog;
 use App\Models\GrmSubmission;
 use App\Models\User;
@@ -16,12 +18,24 @@ use Inertia\Response;
 
 class GrmSubmissionController extends Controller
 {
-    public function index(): Response
+    public function index(FilterGrmSubmissionsRequest $request): Response
     {
         $this->authorize('viewAny', GrmSubmission::class);
 
+        $filters = $request->validated();
+
         $submissions = GrmSubmission::query()
             ->with(['assignee:id,name', 'notes.user:id,name'])
+            ->when($filters['search'] ?? null, function ($query, $search): void {
+                $query->where(function ($nestedQuery) use ($search): void {
+                    $nestedQuery
+                        ->where('reference_number', 'like', "%{$search}%")
+                        ->orWhere('name', 'like', "%{$search}%")
+                        ->orWhere('subject', 'like', "%{$search}%");
+                });
+            })
+            ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
+            ->when($filters['assigned_to'] ?? null, fn ($query, $assignedTo) => $query->where('assigned_to', $assignedTo))
             ->orderByDesc('submitted_at')
             ->get()
             ->map(fn (GrmSubmission $submission): array => [
@@ -37,6 +51,18 @@ class GrmSubmissionController extends Controller
 
         return Inertia::render('cms/grm-submissions/index', [
             'submissions' => $submissions,
+            'filters' => [
+                'search' => $filters['search'] ?? null,
+                'status' => $filters['status'] ?? null,
+                'assigned_to' => isset($filters['assigned_to']) ? (int) $filters['assigned_to'] : null,
+            ],
+            'stats' => [
+                'total' => GrmSubmission::query()->count(),
+                'new' => GrmSubmission::query()->where('status', 'new')->count(),
+                'in_progress' => GrmSubmission::query()->whereIn('status', ['under_review', 'in_progress'])->count(),
+                'resolved' => GrmSubmission::query()->whereIn('status', ['resolved', 'closed'])->count(),
+            ],
+            'users' => $this->users(),
             'status' => session('status'),
         ]);
     }
@@ -117,8 +143,7 @@ class GrmSubmissionController extends Controller
     public function update(
         UpdateGrmSubmissionRequest $request,
         GrmSubmission $grmSubmission,
-    ): RedirectResponse
-    {
+    ): RedirectResponse {
         DB::transaction(function () use ($request, $grmSubmission): void {
             $oldValues = $grmSubmission->fresh()->toArray();
 
@@ -152,8 +177,7 @@ class GrmSubmissionController extends Controller
     public function destroy(
         Request $request,
         GrmSubmission $grmSubmission,
-    ): RedirectResponse
-    {
+    ): RedirectResponse {
         $this->authorize('delete', $grmSubmission);
 
         $oldValues = $grmSubmission->toArray();
@@ -163,6 +187,34 @@ class GrmSubmissionController extends Controller
         $this->recordAudit($request, 'deleted', $grmSubmission, $oldValues, null);
 
         return to_route('cms.grm-submissions.index')->with('status', 'grm-submission-deleted');
+    }
+
+    public function workflow(
+        UpdateGrmSubmissionWorkflowRequest $request,
+        GrmSubmission $grmSubmission,
+    ): RedirectResponse {
+        $oldValues = $grmSubmission->toArray();
+        $status = $request->string('status')->toString();
+
+        $grmSubmission->update([
+            'status' => $status,
+            'reviewed_at' => in_array($status, ['under_review', 'in_progress', 'resolved', 'closed'], true)
+                ? ($grmSubmission->reviewed_at ?? now())
+                : null,
+            'resolved_at' => in_array($status, ['resolved', 'closed'], true)
+                ? ($grmSubmission->resolved_at ?? now())
+                : null,
+        ]);
+
+        $this->recordAudit(
+            $request,
+            'workflow-updated',
+            $grmSubmission,
+            $oldValues,
+            $grmSubmission->fresh()->toArray(),
+        );
+
+        return back()->with('status', 'grm-submission-workflow-updated');
     }
 
     /**

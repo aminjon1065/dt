@@ -1,3 +1,4 @@
+import { Link } from '@inertiajs/react';
 import PublicLayout from '@/layouts/public-layout';
 
 type PageData = {
@@ -84,6 +85,8 @@ export default function PublicPage({
                             <img
                                 src={page.cover_url}
                                 alt={page.title}
+                                loading="lazy"
+                                decoding="async"
                                 className="h-auto w-full rounded-3xl border border-stone-200 object-cover shadow-sm"
                             />
                         )}
@@ -107,17 +110,17 @@ export default function PublicPage({
                         </h2>
 
                         {page?.children && page.children.length > 0 ? (
-                            <div className="space-y-3">
+                            <nav aria-label="Section pages" className="space-y-3">
                                 {page.children.map((child) => (
-                                    <a
+                                    <Link
                                         key={child.id}
                                         href={`/${site.locale}/${child.slug}`}
                                         className="block rounded-xl border border-stone-200 px-4 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:text-stone-950"
                                     >
                                         {child.title}
-                                    </a>
+                                    </Link>
                                 ))}
-                            </div>
+                            </nav>
                         ) : (
                             <p className="text-sm text-stone-500">
                                 No child pages published yet.

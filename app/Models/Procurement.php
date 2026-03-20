@@ -5,9 +5,9 @@ namespace App\Models;
 use App\Policies\ProcurementPolicy;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\UsePolicy;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Model;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
@@ -19,6 +19,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
     'published_at',
     'closing_at',
     'archived_at',
+    'subscription_notified_at',
     'created_by',
     'updated_by',
 ])]
@@ -37,6 +38,7 @@ class Procurement extends Model implements HasMedia
             'published_at' => 'datetime',
             'closing_at' => 'datetime',
             'archived_at' => 'datetime',
+            'subscription_notified_at' => 'datetime',
         ];
     }
 

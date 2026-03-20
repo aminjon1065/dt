@@ -26,11 +26,21 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function DocumentIndex({
     documents,
+    filters,
     status,
 }: {
     documents: DocumentListItem[];
+    filters: { status?: string | null };
     status?: string;
 }) {
+    const statusFilters = [
+        { label: 'All', value: null },
+        { label: 'Draft', value: 'draft' },
+        { label: 'In Review', value: 'in_review' },
+        { label: 'Published', value: 'published' },
+        { label: 'Archived', value: 'archived' },
+    ];
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Documents" />
@@ -58,6 +68,37 @@ export default function DocumentIndex({
                         {status}
                     </div>
                 )}
+
+                <div className="flex flex-wrap gap-2">
+                    {statusFilters.map((statusFilter) => {
+                        const isActive =
+                            (filters.status ?? null) === statusFilter.value;
+
+                        return (
+                            <Button
+                                key={statusFilter.label}
+                                variant={isActive ? 'default' : 'outline'}
+                                asChild
+                            >
+                                <Link
+                                    href={
+                                        statusFilter.value
+                                            ? index({
+                                                  query: {
+                                                      status: statusFilter.value,
+                                                  },
+                                              })
+                                            : index()
+                                    }
+                                    preserveState
+                                    preserveScroll
+                                >
+                                    {statusFilter.label}
+                                </Link>
+                            </Button>
+                        );
+                    })}
+                </div>
 
                 <div className="overflow-hidden rounded-xl border">
                     <table className="w-full text-left text-sm">

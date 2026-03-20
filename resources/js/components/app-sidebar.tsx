@@ -1,5 +1,6 @@
 import { Link } from '@inertiajs/react';
 import {
+    Activity,
     BookOpen,
     FileArchive,
     FileText,
@@ -7,9 +8,11 @@ import {
     Inbox,
     LayoutGrid,
     Menu,
+    Mail,
     Newspaper,
     ReceiptText,
     Settings,
+    Users,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
@@ -31,6 +34,9 @@ import { index as newsIndex } from '@/routes/cms/news';
 import { index as pagesIndex } from '@/routes/cms/pages';
 import { index as procurementsIndex } from '@/routes/cms/procurements';
 import { edit as settingsEdit } from '@/routes/cms/settings';
+import { index as staffMembersIndex } from '@/routes/cms/staff-members';
+import { index as subscriptionsIndex } from '@/routes/cms/subscriptions';
+import { index as auditLogsIndex } from '@/routes/cms/audit-logs';
 import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
 
@@ -39,6 +45,11 @@ const mainNavItems: NavItem[] = [
         title: 'Dashboard',
         href: dashboard(),
         icon: LayoutGrid,
+    },
+    {
+        title: 'Audit log',
+        href: auditLogsIndex(),
+        icon: Activity,
     },
     {
         title: 'Pages',
@@ -74,6 +85,16 @@ const mainNavItems: NavItem[] = [
         title: 'Procurements',
         href: procurementsIndex(),
         icon: ReceiptText,
+    },
+    {
+        title: 'Staff',
+        href: staffMembersIndex(),
+        icon: Users,
+    },
+    {
+        title: 'Subscriptions',
+        href: subscriptionsIndex(),
+        icon: Mail,
     },
 ];
 

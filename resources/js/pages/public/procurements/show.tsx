@@ -110,9 +110,9 @@ export default function PublicProcurementShow({
                 </div>
 
                 {procurement.attachments.length > 0 && (
-                    <div className="mt-10 rounded-3xl border border-stone-200 bg-white p-6 shadow-sm">
+                    <section className="mt-10 rounded-3xl border border-stone-200 bg-white p-6 shadow-sm" aria-labelledby="procurement-attachments-heading">
                         <h2 className="text-lg font-semibold text-stone-950">
-                            Attachments
+                            <span id="procurement-attachments-heading">Attachments</span>
                         </h2>
                         <div className="mt-4 space-y-3">
                             {procurement.attachments.map((attachment) => (
@@ -127,7 +127,7 @@ export default function PublicProcurementShow({
                                 </a>
                             ))}
                         </div>
-                    </div>
+                    </section>
                 )}
             </article>
         </PublicLayout>

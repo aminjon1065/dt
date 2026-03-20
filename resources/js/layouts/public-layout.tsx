@@ -123,6 +123,13 @@ export default function PublicLayout({
             </Head>
 
             <div className="min-h-screen bg-stone-50 text-stone-900">
+                <a
+                    href="#main-content"
+                    className="sr-only absolute top-4 left-4 z-50 rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white focus:not-sr-only"
+                >
+                    Skip to content
+                </a>
+
                 <header className="border-b border-stone-200 bg-white/90 backdrop-blur">
                     <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-4 py-5">
                         <div>
@@ -139,7 +146,7 @@ export default function PublicLayout({
                             )}
                         </div>
 
-                        <nav className="hidden items-center gap-6 md:flex">
+                        <nav aria-label="Primary" className="hidden items-center gap-6 md:flex">
                             {navigation.map((item) => (
                                 <div key={item.id} className="group relative">
                                     <Link
@@ -164,11 +171,60 @@ export default function PublicLayout({
                                     )}
                                 </div>
                             ))}
+
+                            <Link
+                                href={`/${site.locale}/search`}
+                                className="rounded-full border border-stone-200 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-300 hover:text-stone-950"
+                            >
+                                Search
+                            </Link>
                         </nav>
+
+                        <details className="md:hidden">
+                            <summary className="cursor-pointer list-none rounded-full border border-stone-200 px-4 py-2 text-sm font-medium text-stone-700 marker:hidden">
+                                Menu
+                            </summary>
+
+                            <div className="absolute inset-x-4 top-[calc(100%+0.75rem)] z-40 rounded-3xl border border-stone-200 bg-white p-4 shadow-lg">
+                                <nav aria-label="Mobile primary" className="grid gap-2">
+                                    {navigation.map((item) => (
+                                        <div key={item.id} className="grid gap-2">
+                                            <Link
+                                                href={item.href}
+                                                className="rounded-2xl px-3 py-2 text-sm font-medium text-stone-900 hover:bg-stone-100"
+                                            >
+                                                {item.label}
+                                            </Link>
+
+                                            {item.children.length > 0 && (
+                                                <div className="grid gap-1 border-l border-stone-200 pl-3">
+                                                    {item.children.map((child) => (
+                                                        <Link
+                                                            key={child.id}
+                                                            href={child.href}
+                                                            className="rounded-xl px-3 py-2 text-sm text-stone-600 hover:bg-stone-100 hover:text-stone-900"
+                                                        >
+                                                            {child.label}
+                                                        </Link>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+
+                                    <Link
+                                        href={`/${site.locale}/search`}
+                                        className="mt-2 rounded-2xl border border-stone-200 px-3 py-2 text-sm font-medium text-stone-900 hover:bg-stone-100"
+                                    >
+                                        Search
+                                    </Link>
+                                </nav>
+                            </div>
+                        </details>
                     </div>
                 </header>
 
-                <main>{children}</main>
+                <main id="main-content">{children}</main>
 
                 <footer className="mt-16 border-t border-stone-200 bg-white">
                     <div className="mx-auto grid max-w-6xl gap-4 px-4 py-8 text-sm text-stone-600 md:grid-cols-3">

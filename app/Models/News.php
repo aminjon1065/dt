@@ -5,10 +5,10 @@ namespace App\Models;
 use App\Policies\NewsPolicy;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\UsePolicy;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Model;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
@@ -18,6 +18,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
     'published_at',
     'archived_at',
     'featured_until',
+    'subscription_notified_at',
     'created_by',
     'updated_by',
 ])]
@@ -37,6 +38,7 @@ class News extends Model implements HasMedia
             'published_at' => 'datetime',
             'archived_at' => 'datetime',
             'featured_until' => 'datetime',
+            'subscription_notified_at' => 'datetime',
         ];
     }
 

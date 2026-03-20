@@ -3,10 +3,14 @@
 namespace App\Http\Controllers\Cms;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\FilterPagesRequest;
 use App\Http\Requests\StorePageRequest;
 use App\Http\Requests\UpdatePageRequest;
+use App\Http\Requests\UpdatePageWorkflowRequest;
 use App\Models\AuditLog;
 use App\Models\Page;
+use App\Models\User;
+use App\Support\ContentBlocks\ContentBlockRenderer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,12 +22,15 @@ class PageController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request): Response
+    public function index(FilterPagesRequest $request): Response
     {
         $this->authorize('viewAny', Page::class);
 
+        $filters = $request->validated();
+
         $pages = Page::query()
             ->with(['parent:id', 'translations'])
+            ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
             ->orderBy('sort_order')
             ->orderByDesc('updated_at')
             ->get()
@@ -47,6 +54,9 @@ class PageController extends Controller
 
         return Inertia::render('cms/pages/index', [
             'pages' => $pages,
+            'filters' => [
+                'status' => $filters['status'] ?? null,
+            ],
             'status' => session('status'),
         ]);
     }
@@ -54,12 +64,13 @@ class PageController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create(): Response
+    public function create(Request $request): Response
     {
         $this->authorize('create', Page::class);
 
         return Inertia::render('cms/pages/create', [
             'parentPages' => $this->parentPages(),
+            'availableStatuses' => $this->availableStatuses($request->user()),
         ]);
     }
 
@@ -68,6 +79,8 @@ class PageController extends Controller
      */
     public function store(StorePageRequest $request): RedirectResponse
     {
+        $this->ensurePublishableStatus($request);
+
         $page = DB::transaction(function () use ($request): Page {
             $page = Page::query()->create([
                 'parent_id' => $request->validated('parent_id'),
@@ -99,6 +112,7 @@ class PageController extends Controller
         $this->authorize('update', $page);
 
         $page->load('translations');
+        $currentCover = $page->getFirstMedia('cover');
 
         return Inertia::render('cms/pages/edit', [
             'page' => [
@@ -110,12 +124,18 @@ class PageController extends Controller
                 'archived_at' => $page->archived_at?->format('Y-m-d\\TH:i'),
                 'sort_order' => $page->sort_order,
                 'is_home' => $page->is_home,
+                'current_cover' => $currentCover ? [
+                    'id' => $currentCover->id,
+                    'name' => $currentCover->name,
+                    'url' => $currentCover->getUrl(),
+                ] : null,
                 'translations' => $page->translations->mapWithKeys(
                     fn ($translation) => [$translation->locale => [
                         'title' => $translation->title,
                         'slug' => $translation->slug,
                         'summary' => $translation->summary,
                         'content' => $translation->content,
+                        'content_blocks' => $translation->content_blocks,
                         'seo_title' => $translation->seo_title,
                         'seo_description' => $translation->seo_description,
                     ]]
@@ -123,6 +143,8 @@ class PageController extends Controller
                 'cover_url' => $page->getFirstMediaUrl('cover') ?: null,
             ],
             'parentPages' => $this->parentPages($page),
+            'availableStatuses' => $this->availableStatuses(request()->user()),
+            'canPublish' => request()->user()?->getAllPermissions()->contains('name', 'pages.publish') ?? false,
             'status' => session('status'),
         ]);
     }
@@ -132,6 +154,8 @@ class PageController extends Controller
      */
     public function update(UpdatePageRequest $request, Page $page): RedirectResponse
     {
+        $this->ensurePublishableStatus($request);
+
         DB::transaction(function () use ($request, $page): void {
             $oldValues = $page->fresh()->toArray();
 
@@ -170,6 +194,30 @@ class PageController extends Controller
         return to_route('cms.pages.index')->with('status', 'page-deleted');
     }
 
+    public function workflow(UpdatePageWorkflowRequest $request, Page $page): RedirectResponse
+    {
+        $pageId = $request->route('page') instanceof Page
+            ? $request->route('page')->getKey()
+            : $request->route('page');
+
+        $page = Page::query()->findOrFail($pageId);
+        $oldValues = $page->toArray();
+        $status = $request->string('status')->toString();
+
+        Page::query()->whereKey($page->getKey())->update([
+            'status' => $status,
+            'published_at' => $status === 'published'
+                ? ($page->published_at ?? now())
+                : $page->published_at,
+            'archived_at' => $status === 'archived' ? now() : null,
+            'updated_by' => $request->user()->id,
+        ]);
+
+        $this->recordAudit($request, 'workflow-updated', $page, $oldValues, $page->refresh()->toArray());
+
+        return back()->with('status', 'page-workflow-updated');
+    }
+
     /**
      * @param  array<string, array<string, mixed>>  $translations
      */
@@ -182,7 +230,9 @@ class PageController extends Controller
                     'title' => $translation['title'],
                     'slug' => $translation['slug'],
                     'summary' => $translation['summary'] ?? null,
-                    'content' => $translation['content'] ?? null,
+                    'content' => ContentBlockRenderer::toHtml($translation['content_blocks'] ?? [])
+                        ?? ($translation['content'] ?? null),
+                    'content_blocks' => ContentBlockRenderer::normalize($translation['content_blocks'] ?? []),
                     'seo_title' => $translation['seo_title'] ?? null,
                     'seo_description' => $translation['seo_description'] ?? null,
                 ],
@@ -192,9 +242,22 @@ class PageController extends Controller
 
     protected function syncCover(Page $page, Request $request): void
     {
+        if ($request->boolean('remove_cover')) {
+            $page->clearMediaCollection('cover');
+        }
+
         if ($request->hasFile('cover')) {
             $page->clearMediaCollection('cover');
             $page->addMediaFromRequest('cover')->toMediaCollection('cover');
+        }
+    }
+
+    protected function ensurePublishableStatus(Request $request): void
+    {
+        if (
+            in_array($request->input('status'), ['published', 'archived'], true)
+        ) {
+            $this->authorize('publish', Page::class);
         }
     }
 
@@ -211,6 +274,23 @@ class PageController extends Controller
             ->map(fn (Page $page): array => [
                 'id' => $page->id,
                 'title' => $page->translation('en')?->title ?? "Page #{$page->id}",
+            ])
+            ->all();
+    }
+
+    /**
+     * @return array<int, array{value:string,label:string}>
+     */
+    protected function availableStatuses(?User $user): array
+    {
+        $statuses = $user?->getAllPermissions()->contains('name', 'pages.publish')
+            ? ['draft', 'in_review', 'published', 'archived']
+            : ['draft', 'in_review'];
+
+        return collect($statuses)
+            ->map(fn (string $status): array => [
+                'value' => $status,
+                'label' => str($status)->replace('_', ' ')->title()->value(),
             ])
             ->all();
     }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Public\FilterPublicProcurementsRequest;
 use App\Models\Procurement;
 use App\Models\Setting;
 use Inertia\Inertia;
@@ -9,32 +10,76 @@ use Inertia\Response;
 
 class PublicProcurementController extends Controller
 {
-    public function index(string $locale): Response
+    public function index(FilterPublicProcurementsRequest $request, string $locale): Response
     {
+        $filters = $request->validated();
+
         $procurements = Procurement::query()
             ->with('translations')
             ->whereIn('status', ['open', 'closed', 'awarded'])
             ->where(function ($query): void {
                 $query->whereNull('published_at')
                     ->orWhere('published_at', '<=', now());
-            })
+            });
+
+        if (($search = $filters['search'] ?? null) !== null) {
+            $procurements->where(function ($query) use ($locale, $search): void {
+                $query->where('reference_number', 'like', "%{$search}%")
+                    ->orWhereHas('translations', function ($translationQuery) use ($locale, $search): void {
+                        $translationQuery->whereIn('locale', [$locale, 'en'])
+                            ->where(function ($localizedQuery) use ($search): void {
+                                $localizedQuery->where('title', 'like', "%{$search}%")
+                                    ->orWhere('summary', 'like', "%{$search}%")
+                                    ->orWhere('content', 'like', "%{$search}%");
+                            });
+                    });
+            });
+        }
+
+        if (($status = $filters['status'] ?? null) !== null) {
+            $procurements->where('status', $status);
+        }
+
+        if (($procurementType = $filters['procurement_type'] ?? null) !== null) {
+            $procurements->where('procurement_type', $procurementType);
+        }
+
+        $procurements = $procurements
             ->orderByDesc('published_at')
             ->orderByDesc('closing_at')
-            ->get()
-            ->map(fn (Procurement $procurement): array => $this->transformProcurementListItem($procurement, $locale))
-            ->values()
-            ->all();
+            ->paginate(10)
+            ->withQueryString()
+            ->through(fn (Procurement $procurement): array => $this->transformProcurementListItem($procurement, $locale));
 
         return Inertia::render('public/procurements/index', [
             'locale' => $locale,
             'site' => $this->siteData($locale),
             'navigation' => app(PublicPageController::class)->navigation($locale),
+            'indexUrl' => route('public.procurements.index', ['locale' => $locale]),
             'seo' => [
                 'title' => 'Procurements',
                 'description' => 'Current and recent procurement notices and tender information.',
                 'canonical_url' => route('public.procurements.index', ['locale' => $locale]),
                 'type' => 'website',
             ],
+            'filters' => [
+                'search' => $filters['search'] ?? null,
+                'status' => $filters['status'] ?? null,
+                'procurement_type' => $filters['procurement_type'] ?? null,
+            ],
+            'statuses' => [
+                ['value' => 'open', 'label' => 'Open'],
+                ['value' => 'closed', 'label' => 'Closed'],
+                ['value' => 'awarded', 'label' => 'Awarded'],
+            ],
+            'procurementTypes' => Procurement::query()
+                ->whereIn('status', ['open', 'closed', 'awarded'])
+                ->whereNotNull('procurement_type')
+                ->distinct()
+                ->orderBy('procurement_type')
+                ->pluck('procurement_type')
+                ->values()
+                ->all(),
             'procurements' => $procurements,
         ]);
     }

@@ -48,7 +48,68 @@ it('renders the public news listing', function () {
         ->assertSuccessful()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('public/news/index')
-            ->where('newsItems.0.title', 'Проект запущен'));
+            ->where('newsItems.data.0.title', 'Проект запущен'));
+});
+
+it('filters the public news listing by search and category', function () {
+    $user = User::factory()->create();
+
+    $announcements = NewsCategory::query()->create([
+        'slug' => 'announcements',
+        'is_active' => true,
+    ]);
+    $announcements->translations()->create([
+        'locale' => 'en',
+        'name' => 'Announcements',
+    ]);
+
+    $updates = NewsCategory::query()->create([
+        'slug' => 'updates',
+        'is_active' => true,
+    ]);
+    $updates->translations()->create([
+        'locale' => 'en',
+        'name' => 'Updates',
+    ]);
+
+    $matchingNews = News::query()->create([
+        'status' => 'published',
+        'published_at' => now(),
+        'created_by' => $user->id,
+        'updated_by' => $user->id,
+    ]);
+    $matchingNews->translations()->create([
+        'locale' => 'en',
+        'title' => 'Project launch announcement',
+        'slug' => 'project-launch-announcement',
+        'summary' => 'Launch summary',
+        'content' => '<p>Launch content</p>',
+    ]);
+    $matchingNews->categories()->attach($announcements);
+
+    $nonMatchingNews = News::query()->create([
+        'status' => 'published',
+        'published_at' => now(),
+        'created_by' => $user->id,
+        'updated_by' => $user->id,
+    ]);
+    $nonMatchingNews->translations()->create([
+        'locale' => 'en',
+        'title' => 'Weekly operations update',
+        'slug' => 'weekly-operations-update',
+        'summary' => 'Operations summary',
+        'content' => '<p>Operations content</p>',
+    ]);
+    $nonMatchingNews->categories()->attach($updates);
+
+    $this->get('/en/news?search=launch&category=announcements')
+        ->assertSuccessful()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('public/news/index')
+            ->where('filters.search', 'launch')
+            ->where('filters.category', 'announcements')
+            ->has('newsItems.data', 1)
+            ->where('newsItems.data.0.title', 'Project launch announcement'));
 });
 
 it('renders a public news detail page by localized slug', function () {

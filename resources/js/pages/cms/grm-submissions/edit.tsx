@@ -1,5 +1,10 @@
 import { Form, Head, Link } from '@inertiajs/react';
-import { destroy, update } from '@/actions/App/Http/Controllers/Cms/GrmSubmissionController';
+import {
+    destroy,
+    update,
+    workflow,
+} from '@/actions/App/Http/Controllers/Cms/GrmSubmissionController';
+import WorkflowActions from '@/components/cms/workflow-actions';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import GrmSubmissionForm from '@/pages/cms/grm-submissions/form';
@@ -54,6 +59,21 @@ export default function EditGrmSubmission({
     users: UserOption[];
     status?: string;
 }) {
+    const workflowActions = [
+        ...(submission.status !== 'under_review'
+            ? [{ label: 'Start review', status: 'under_review' as const, variant: 'secondary' as const }]
+            : []),
+        ...(submission.status !== 'in_progress'
+            ? [{ label: 'Mark in progress', status: 'in_progress' as const, variant: 'default' as const }]
+            : []),
+        ...(submission.status !== 'resolved'
+            ? [{ label: 'Resolve', status: 'resolved' as const, variant: 'outline' as const }]
+            : []),
+        ...(submission.status !== 'closed'
+            ? [{ label: 'Close case', status: 'closed' as const, variant: 'outline' as const }]
+            : []),
+    ];
+
     return (
         <AppLayout breadcrumbs={breadcrumbs(submission.id)}>
             <Head title="Edit GRM submission" />
@@ -80,6 +100,12 @@ export default function EditGrmSubmission({
                         {status}
                     </div>
                 )}
+
+                <WorkflowActions
+                    action={workflow.form(submission.id)}
+                    actions={workflowActions}
+                    description="Move this grievance through review, active handling, resolution, and closure."
+                />
 
                 <GrmSubmissionForm
                     action={update.form(submission.id)}

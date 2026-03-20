@@ -24,11 +24,23 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function ProcurementIndex({
     procurements,
+    filters,
     status,
 }: {
     procurements: ProcurementListItem[];
+    filters: { status?: string | null };
     status?: string;
 }) {
+    const statusFilters = [
+        { label: 'All', value: null },
+        { label: 'Planned', value: 'planned' },
+        { label: 'Open', value: 'open' },
+        { label: 'Closed', value: 'closed' },
+        { label: 'Awarded', value: 'awarded' },
+        { label: 'Cancelled', value: 'cancelled' },
+        { label: 'Archived', value: 'archived' },
+    ];
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Procurements" />
@@ -58,6 +70,37 @@ export default function ProcurementIndex({
                         {status}
                     </div>
                 )}
+
+                <div className="flex flex-wrap gap-2">
+                    {statusFilters.map((statusFilter) => {
+                        const isActive =
+                            (filters.status ?? null) === statusFilter.value;
+
+                        return (
+                            <Button
+                                key={statusFilter.label}
+                                variant={isActive ? 'default' : 'outline'}
+                                asChild
+                            >
+                                <Link
+                                    href={
+                                        statusFilter.value
+                                            ? index({
+                                                  query: {
+                                                      status: statusFilter.value,
+                                                  },
+                                              })
+                                            : index()
+                                    }
+                                    preserveState
+                                    preserveScroll
+                                >
+                                    {statusFilter.label}
+                                </Link>
+                            </Button>
+                        );
+                    })}
+                </div>
 
                 <div className="overflow-hidden rounded-xl border">
                     <table className="w-full text-left text-sm">

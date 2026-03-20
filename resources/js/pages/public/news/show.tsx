@@ -84,6 +84,8 @@ export default function PublicNewsShow({
                     <img
                         src={newsItem.cover_url}
                         alt={newsItem.title}
+                        loading="lazy"
+                        decoding="async"
                         className="mt-8 h-auto w-full rounded-3xl border border-stone-200 object-cover shadow-sm"
                     />
                 )}

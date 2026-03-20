@@ -58,7 +58,79 @@ it('renders the public documents archive', function () {
         ->assertSuccessful()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('public/documents/index')
-            ->where('documents.0.title', 'Годовой отчет'));
+            ->where('documents.data.0.title', 'Годовой отчет'));
+});
+
+it('filters the public documents archive by query parameters', function () {
+    $user = User::factory()->create();
+
+    $reportsCategory = DocumentCategory::query()->create([
+        'slug' => 'reports',
+        'is_active' => true,
+    ]);
+    $reportsCategory->translations()->create([
+        'locale' => 'en',
+        'name' => 'Reports',
+    ]);
+
+    $policiesCategory = DocumentCategory::query()->create([
+        'slug' => 'policies',
+        'is_active' => true,
+    ]);
+    $policiesCategory->translations()->create([
+        'locale' => 'en',
+        'name' => 'Policies',
+    ]);
+
+    $featuredTag = DocumentTag::query()->create(['slug' => 'featured']);
+    $featuredTag->translations()->create([
+        'locale' => 'en',
+        'name' => 'Featured',
+    ]);
+
+    $matchingDocument = Document::query()->create([
+        'document_category_id' => $reportsCategory->id,
+        'status' => 'published',
+        'file_type' => 'pdf',
+        'document_date' => now()->toDateString(),
+        'published_at' => now(),
+        'created_by' => $user->id,
+        'updated_by' => $user->id,
+    ]);
+    $matchingDocument->translations()->create([
+        'locale' => 'en',
+        'title' => 'Annual report',
+        'slug' => 'annual-report',
+        'summary' => 'Featured summary',
+    ]);
+    $matchingDocument->tags()->attach($featuredTag);
+
+    $nonMatchingDocument = Document::query()->create([
+        'document_category_id' => $policiesCategory->id,
+        'status' => 'published',
+        'file_type' => 'docx',
+        'document_date' => now()->toDateString(),
+        'published_at' => now(),
+        'created_by' => $user->id,
+        'updated_by' => $user->id,
+    ]);
+    $nonMatchingDocument->translations()->create([
+        'locale' => 'en',
+        'title' => 'Internal policy',
+        'slug' => 'internal-policy',
+        'summary' => 'Operations guide',
+    ]);
+
+    $this->get('/en/documents?search=Annual&category=reports&tag=featured&file_type=pdf')
+        ->assertSuccessful()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('public/documents/index')
+            ->where('filters.search', 'Annual')
+            ->where('filters.category', 'reports')
+            ->where('filters.tag', 'featured')
+            ->where('filters.file_type', 'pdf')
+            ->has('documents.data', 1)
+            ->where('documents.data.0.title', 'Annual report'));
 });
 
 it('renders a public document detail page by localized slug', function () {
@@ -87,12 +159,16 @@ it('renders a public document detail page by localized slug', function () {
             'title' => 'Project policy',
             'slug' => 'project-policy',
             'summary' => 'Summary',
+            'content' => '<p>Policy body</p>',
+            'seo_title' => 'Project policy SEO',
         ],
         [
             'locale' => 'tj',
             'title' => 'Сиёсати лоиҳа',
             'slug' => 'siyosati-loiha',
             'summary' => 'Хулоса',
+            'content' => '<p>Тавсифи ҳуҷҷат</p>',
+            'seo_title' => 'SEO',
         ],
     ]);
 
@@ -100,5 +176,6 @@ it('renders a public document detail page by localized slug', function () {
         ->assertSuccessful()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('public/documents/show')
-            ->where('document.title', 'Сиёсати лоиҳа'));
+            ->where('document.title', 'Сиёсати лоиҳа')
+            ->where('document.content', '<p>Тавсифи ҳуҷҷат</p>'));
 });

@@ -5,10 +5,10 @@ namespace App\Models;
 use App\Policies\DocumentPolicy;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\UsePolicy;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Model;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
@@ -20,6 +20,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
     'document_date',
     'published_at',
     'archived_at',
+    'subscription_notified_at',
     'created_by',
     'updated_by',
 ])]
@@ -38,6 +39,7 @@ class Document extends Model implements HasMedia
             'document_date' => 'date',
             'published_at' => 'datetime',
             'archived_at' => 'datetime',
+            'subscription_notified_at' => 'datetime',
         ];
     }
 

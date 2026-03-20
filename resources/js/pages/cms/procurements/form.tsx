@@ -1,14 +1,18 @@
 import { Form } from '@inertiajs/react';
+import BlockEditor from '@/components/cms/block-editor';
+import MediaManager from '@/components/cms/media-manager';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import type { ContentBlock } from '@/lib/content-blocks';
 
 type TranslationFields = {
     title: string;
     slug: string;
     summary?: string | null;
     content?: string | null;
+    content_blocks?: ContentBlock[] | null;
     seo_title?: string | null;
     seo_description?: string | null;
 };
@@ -32,6 +36,7 @@ type ProcurementFormData = {
 
 type Props = {
     action: any;
+    availableStatuses: Array<{ value: string; label: string }>;
     procurement?: ProcurementFormData;
     submitLabel: string;
 };
@@ -40,6 +45,7 @@ const locales: Array<'en' | 'tj' | 'ru'> = ['en', 'tj', 'ru'];
 
 export default function ProcurementForm({
     action,
+    availableStatuses,
     procurement,
     submitLabel,
 }: Props) {
@@ -107,44 +113,27 @@ export default function ProcurementForm({
                                     }
                                     className="border-input focus-visible:border-ring focus-visible:ring-ring/50 rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-[3px]"
                                 >
-                                    <option value="planned">Planned</option>
-                                    <option value="open">Open</option>
-                                    <option value="closed">Closed</option>
-                                    <option value="awarded">Awarded</option>
-                                    <option value="cancelled">Cancelled</option>
-                                    <option value="archived">Archived</option>
+                                    {availableStatuses.map((statusOption) => (
+                                        <option key={statusOption.value} value={statusOption.value}>
+                                            {statusOption.label}
+                                        </option>
+                                    ))}
                                 </select>
                                 <InputError message={errors.status} />
                             </div>
 
-                            <div className="grid gap-2">
-                                <Label htmlFor="attachments">Attachments</Label>
-                                <Input
-                                    id="attachments"
-                                    name="attachments[]"
-                                    type="file"
-                                    multiple
-                                />
-                                {procurement?.attachments &&
-                                    procurement.attachments.length > 0 && (
-                                        <div className="space-y-1 text-sm">
-                                            {procurement.attachments.map(
-                                                (attachment) => (
-                                                    <a
-                                                        key={attachment.id}
-                                                        href={attachment.url}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        className="block underline"
-                                                    >
-                                                        {attachment.name}
-                                                    </a>
-                                                ),
-                                            )}
-                                        </div>
-                                    )}
-                                <InputError message={errors.attachments} />
-                            </div>
+                            <MediaManager
+                                inputId="attachments"
+                                inputName="attachments[]"
+                                label="Attachments"
+                                currentLabel="Current attachments"
+                                existingItems={procurement?.attachments ?? []}
+                                multiple
+                                removeInputName="remove_attachment_ids[]"
+                                removeInputType="array"
+                                error={errors.attachments}
+                                removeError={errors.remove_attachment_ids}
+                            />
                         </div>
 
                         <div className="grid gap-2 md:grid-cols-3 md:gap-4">
@@ -257,23 +246,15 @@ export default function ProcurementForm({
                             </div>
 
                             <div className="grid gap-2">
-                                <Label
-                                    htmlFor={`translations.${locale}.content`}
-                                >
-                                    Content
-                                </Label>
-                                <textarea
-                                    id={`translations.${locale}.content`}
-                                    name={`translations[${locale}][content]`}
-                                    defaultValue={
-                                        procurement?.translations[locale]
-                                            ?.content ?? ''
-                                    }
-                                    className="border-input focus-visible:border-ring focus-visible:ring-ring/50 min-h-40 rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-[3px]"
+                                <BlockEditor
+                                    name={`translations[${locale}][content_blocks]`}
+                                    label={`Content blocks (${locale.toUpperCase()})`}
+                                    initialValue={procurement?.translations[locale]?.content_blocks ?? undefined}
+                                    legacyContent={procurement?.translations[locale]?.content ?? ''}
                                 />
                                 <InputError
                                     message={
-                                        errors[`translations.${locale}.content`]
+                                        errors[`translations.${locale}.content_blocks`]
                                     }
                                 />
                             </div>

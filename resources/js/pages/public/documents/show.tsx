@@ -31,6 +31,9 @@ type DocumentData = {
     title: string;
     slug: string;
     summary?: string | null;
+    content?: string | null;
+    seo_title?: string | null;
+    seo_description?: string | null;
     file_type?: string | null;
     document_date?: string | null;
     category: string;
@@ -53,7 +56,7 @@ export default function PublicDocumentShow({
 }) {
     return (
         <PublicLayout
-            title={document.title}
+            title={document.seo_title || document.title}
             site={site}
             navigation={navigation}
             seo={seo}
@@ -72,6 +75,16 @@ export default function PublicDocumentShow({
                             {document.summary}
                         </p>
                     )}
+                </div>
+
+                <div className="prose prose-stone mt-8 max-w-none">
+                    {document.content ? (
+                        <div
+                            dangerouslySetInnerHTML={{
+                                __html: document.content,
+                            }}
+                        />
+                    ) : null}
                 </div>
 
                 <div className="mt-8 grid gap-4 rounded-3xl border border-stone-200 bg-white p-6 shadow-sm md:grid-cols-2">

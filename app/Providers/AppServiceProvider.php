@@ -2,6 +2,12 @@
 
 namespace App\Providers;
 
+use App\Models\Document;
+use App\Models\News;
+use App\Models\Procurement;
+use App\Observers\DocumentObserver;
+use App\Observers\NewsObserver;
+use App\Observers\ProcurementObserver;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +30,10 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+
+        Document::observe(DocumentObserver::class);
+        News::observe(NewsObserver::class);
+        Procurement::observe(ProcurementObserver::class);
     }
 
     /**

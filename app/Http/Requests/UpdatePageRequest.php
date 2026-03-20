@@ -2,26 +2,37 @@
 
 namespace App\Http\Requests;
 
-use App\Models\Page;
-use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdatePageRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return $this->user()->can('update', $this->route('page'));
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, ValidationRule|array<mixed>|string>
-     */
+    protected function prepareForValidation(): void
+    {
+        $translations = collect($this->input('translations', []))
+            ->map(function (mixed $translation): mixed {
+                if (! is_array($translation)) {
+                    return $translation;
+                }
+
+                if (is_string($translation['content_blocks'] ?? null)) {
+                    $translation['content_blocks'] = json_decode($translation['content_blocks'], true) ?? [];
+                }
+
+                return $translation;
+            })
+            ->all();
+
+        $this->merge([
+            'translations' => $translations,
+        ]);
+    }
+
     public function rules(): array
     {
         $page = $this->route('page');
@@ -29,12 +40,13 @@ class UpdatePageRequest extends FormRequest
         return [
             'parent_id' => ['nullable', 'exists:pages,id', Rule::notIn([$page->id])],
             'template' => ['required', 'string', 'max:255'],
-            'status' => ['required', Rule::in(['draft', 'published', 'archived'])],
+            'status' => ['required', Rule::in($this->allowedStatuses())],
             'published_at' => ['nullable', 'date'],
             'archived_at' => ['nullable', 'date'],
             'sort_order' => ['required', 'integer', 'min:0'],
             'is_home' => ['required', 'boolean'],
             'cover' => ['nullable', 'image', 'max:10240'],
+            'remove_cover' => ['nullable', 'boolean'],
             'translations' => ['required', 'array:en,tj,ru'],
             'translations.en' => ['required', 'array'],
             'translations.tj' => ['required', 'array'],
@@ -43,6 +55,12 @@ class UpdatePageRequest extends FormRequest
             'translations.*.slug' => ['required', 'string', 'max:255'],
             'translations.*.summary' => ['nullable', 'string'],
             'translations.*.content' => ['nullable', 'string'],
+            'translations.*.content_blocks' => ['nullable', 'array'],
+            'translations.*.content_blocks.*.type' => ['required', Rule::in(['paragraph', 'heading', 'quote', 'list', 'html'])],
+            'translations.*.content_blocks.*.content' => ['nullable', 'string'],
+            'translations.*.content_blocks.*.level' => ['nullable', 'integer', Rule::in([2, 3, 4])],
+            'translations.*.content_blocks.*.items' => ['nullable', 'array'],
+            'translations.*.content_blocks.*.items.*' => ['nullable', 'string'],
             'translations.*.seo_title' => ['nullable', 'string', 'max:255'],
             'translations.*.seo_description' => ['nullable', 'string'],
             'translations.en.slug' => [
@@ -70,5 +88,17 @@ class UpdatePageRequest extends FormRequest
                 ),
             ],
         ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function allowedStatuses(): array
+    {
+        if ($this->user()->getAllPermissions()->contains('name', 'pages.publish')) {
+            return ['draft', 'in_review', 'published', 'archived'];
+        }
+
+        return ['draft', 'in_review'];
     }
 }

@@ -31,6 +31,11 @@ class NewsPolicy
         return $user->can('news.create');
     }
 
+    public function publish(User $user): bool
+    {
+        return $user->getAllPermissions()->contains('name', 'news.publish');
+    }
+
     /**
      * Determine whether the user can update the model.
      */

@@ -6,6 +6,7 @@ use App\Models\Document;
 use App\Models\News;
 use App\Models\Page;
 use App\Models\Procurement;
+use App\Models\StaffMember;
 use Illuminate\Http\Response;
 
 class SitemapController extends Controller
@@ -22,6 +23,16 @@ class SitemapController extends Controller
 
             $urls->push([
                 'loc' => route('public.grm.create', ['locale' => $locale]),
+                'lastmod' => now()->toDateString(),
+            ]);
+
+            $urls->push([
+                'loc' => route('public.staff.index', ['locale' => $locale]),
+                'lastmod' => now()->toDateString(),
+            ]);
+
+            $urls->push([
+                'loc' => route('public.subscriptions.create', ['locale' => $locale]),
                 'lastmod' => now()->toDateString(),
             ]);
         }
@@ -102,6 +113,25 @@ class SitemapController extends Controller
                             'slug' => $translation->slug,
                         ]),
                         'lastmod' => ($procurement->published_at ?? $procurement->updated_at)?->toDateString(),
+                    ]);
+                }
+            });
+
+        StaffMember::query()
+            ->with('translations')
+            ->where('status', 'published')
+            ->where(function ($query): void {
+                $query->whereNull('published_at')->orWhere('published_at', '<=', now());
+            })
+            ->get()
+            ->each(function (StaffMember $staffMember) use ($urls): void {
+                foreach ($staffMember->translations as $translation) {
+                    $urls->push([
+                        'loc' => route('public.staff.show', [
+                            'locale' => $translation->locale,
+                            'slug' => $translation->slug,
+                        ]),
+                        'lastmod' => ($staffMember->published_at ?? $staffMember->updated_at)?->toDateString(),
                     ]);
                 }
             });

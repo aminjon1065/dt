@@ -1,5 +1,10 @@
 import { Form, Head, Link } from '@inertiajs/react';
-import { destroy, update } from '@/actions/App/Http/Controllers/Cms/ProcurementController';
+import {
+    destroy,
+    update,
+    workflow,
+} from '@/actions/App/Http/Controllers/Cms/ProcurementController';
+import WorkflowActions from '@/components/cms/workflow-actions';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import ProcurementForm from '@/pages/cms/procurements/form';
@@ -41,11 +46,65 @@ const breadcrumbs = (procurementId: number): BreadcrumbItem[] => [
 
 export default function EditProcurement({
     procurement,
+    availableStatuses,
+    canPublish,
     status,
 }: {
     procurement: ProcurementFormData;
+    availableStatuses: Array<{ value: string; label: string }>;
+    canPublish: boolean;
     status?: string;
 }) {
+    const workflowActions = canPublish
+        ? [
+              ...(procurement.status !== 'open'
+                  ? [
+                        {
+                            label: 'Open notice',
+                            status: 'open' as const,
+                            variant: 'default' as const,
+                        },
+                    ]
+                  : []),
+              ...(procurement.status !== 'closed'
+                  ? [
+                        {
+                            label: 'Close notice',
+                            status: 'closed' as const,
+                            variant: 'outline' as const,
+                        },
+                    ]
+                  : []),
+              ...(procurement.status !== 'awarded'
+                  ? [
+                        {
+                            label: 'Mark awarded',
+                            status: 'awarded' as const,
+                            variant: 'secondary' as const,
+                        },
+                    ]
+                  : []),
+              ...(procurement.status !== 'cancelled'
+                  ? [
+                        {
+                            label: 'Cancel notice',
+                            status: 'cancelled' as const,
+                            variant: 'outline' as const,
+                        },
+                    ]
+                  : []),
+              ...(procurement.status !== 'archived'
+                  ? [
+                        {
+                            label: 'Archive notice',
+                            status: 'archived' as const,
+                            variant: 'outline' as const,
+                        },
+                    ]
+                  : []),
+          ]
+        : [];
+
     return (
         <AppLayout breadcrumbs={breadcrumbs(procurement.id)}>
             <Head title="Edit procurement" />
@@ -73,8 +132,14 @@ export default function EditProcurement({
                     </div>
                 )}
 
+                <WorkflowActions
+                    action={workflow.form(procurement.id)}
+                    actions={workflowActions}
+                />
+
                 <ProcurementForm
                     action={update.form(procurement.id)}
+                    availableStatuses={availableStatuses}
                     procurement={procurement}
                     submitLabel="Save changes"
                 />

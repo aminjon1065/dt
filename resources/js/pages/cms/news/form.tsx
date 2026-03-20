@@ -1,15 +1,19 @@
 import { Form } from '@inertiajs/react';
+import BlockEditor from '@/components/cms/block-editor';
+import MediaManager from '@/components/cms/media-manager';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import type { ContentBlock } from '@/lib/content-blocks';
 
 type TranslationFields = {
     title: string;
     slug: string;
     summary?: string | null;
     content?: string | null;
+    content_blocks?: ContentBlock[] | null;
     seo_title?: string | null;
     seo_description?: string | null;
 };
@@ -21,6 +25,11 @@ type NewsFormData = {
     featured_until: string | null;
     category_ids: number[];
     cover_url?: string | null;
+    current_cover?: {
+        id: number;
+        name: string;
+        url: string;
+    } | null;
     translations: Record<'en' | 'tj' | 'ru', TranslationFields>;
 };
 
@@ -32,6 +41,7 @@ type Category = {
 type Props = {
     action: any;
     categories: Category[];
+    availableStatuses: Array<{ value: string; label: string }>;
     newsItem?: NewsFormData;
     submitLabel: string;
 };
@@ -41,6 +51,7 @@ const locales: Array<'en' | 'tj' | 'ru'> = ['en', 'tj', 'ru'];
 export default function NewsForm({
     action,
     categories,
+    availableStatuses,
     newsItem,
     submitLabel,
 }: Props) {
@@ -62,28 +73,30 @@ export default function NewsForm({
                                     defaultValue={newsItem?.status ?? 'draft'}
                                     className="border-input focus-visible:border-ring focus-visible:ring-ring/50 rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-[3px]"
                                 >
-                                    <option value="draft">Draft</option>
-                                    <option value="published">Published</option>
-                                    <option value="archived">Archived</option>
+                                    {availableStatuses.map((statusOption) => (
+                                        <option key={statusOption.value} value={statusOption.value}>
+                                            {statusOption.label}
+                                        </option>
+                                    ))}
                                 </select>
                                 <InputError message={errors.status} />
                             </div>
 
-                            <div className="grid gap-2">
-                                <Label htmlFor="cover">Cover image</Label>
-                                <Input id="cover" name="cover" type="file" />
-                                {newsItem?.cover_url && (
-                                    <a
-                                        href={newsItem.cover_url}
-                                        className="text-sm underline"
-                                        target="_blank"
-                                        rel="noreferrer"
-                                    >
-                                        View current cover
-                                    </a>
-                                )}
-                                <InputError message={errors.cover} />
-                            </div>
+                            <MediaManager
+                                inputId="cover"
+                                inputName="cover"
+                                label="Cover image"
+                                currentLabel="Current cover"
+                                existingItems={
+                                    newsItem?.current_cover
+                                        ? [newsItem.current_cover]
+                                        : []
+                                }
+                                removeInputName="remove_cover"
+                                removeInputType="boolean"
+                                error={errors.cover}
+                                removeError={errors.remove_cover}
+                            />
                         </div>
 
                         <div className="grid gap-2 md:grid-cols-3 md:gap-4">
@@ -216,23 +229,15 @@ export default function NewsForm({
                             </div>
 
                             <div className="grid gap-2">
-                                <Label
-                                    htmlFor={`translations.${locale}.content`}
-                                >
-                                    Content
-                                </Label>
-                                <textarea
-                                    id={`translations.${locale}.content`}
-                                    name={`translations[${locale}][content]`}
-                                    defaultValue={
-                                        newsItem?.translations[locale]
-                                            ?.content ?? ''
-                                    }
-                                    className="border-input focus-visible:border-ring focus-visible:ring-ring/50 min-h-40 rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-[3px]"
+                                <BlockEditor
+                                    name={`translations[${locale}][content_blocks]`}
+                                    label={`Content blocks (${locale.toUpperCase()})`}
+                                    initialValue={newsItem?.translations[locale]?.content_blocks ?? undefined}
+                                    legacyContent={newsItem?.translations[locale]?.content ?? ''}
                                 />
                                 <InputError
                                     message={
-                                        errors[`translations.${locale}.content`]
+                                        errors[`translations.${locale}.content_blocks`]
                                     }
                                 />
                             </div>

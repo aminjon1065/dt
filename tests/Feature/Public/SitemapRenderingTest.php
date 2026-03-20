@@ -5,6 +5,7 @@ use App\Models\DocumentCategory;
 use App\Models\News;
 use App\Models\Page;
 use App\Models\Procurement;
+use App\Models\StaffMember;
 use App\Models\User;
 
 it('renders an xml sitemap with published public routes', function () {
@@ -79,6 +80,19 @@ it('renders an xml sitemap with published public routes', function () {
         'slug' => 'office-equipment',
     ]);
 
+    $staffMember = StaffMember::query()->create([
+        'status' => 'published',
+        'published_at' => now(),
+        'created_by' => $user->id,
+        'updated_by' => $user->id,
+    ]);
+
+    $staffMember->translations()->create([
+        'locale' => 'en',
+        'name' => 'Jane Manager',
+        'slug' => 'jane-manager',
+    ]);
+
     $response = $this->get(route('sitemap'));
 
     $response
@@ -88,5 +102,7 @@ it('renders an xml sitemap with published public routes', function () {
         ->assertSee(route('public.pages.show', ['locale' => 'en', 'slug' => 'about']), false)
         ->assertSee(route('public.news.show', ['locale' => 'en', 'slug' => 'portal-update']), false)
         ->assertSee(route('public.documents.show', ['locale' => 'en', 'slug' => 'policy-paper']), false)
-        ->assertSee(route('public.procurements.show', ['locale' => 'en', 'slug' => 'office-equipment']), false);
+        ->assertSee(route('public.procurements.show', ['locale' => 'en', 'slug' => 'office-equipment']), false)
+        ->assertSee(route('public.staff.show', ['locale' => 'en', 'slug' => 'jane-manager']), false)
+        ->assertSee(route('public.subscriptions.create', ['locale' => 'en']), false);
 });
