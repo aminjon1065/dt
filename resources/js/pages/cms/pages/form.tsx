@@ -1,5 +1,6 @@
 import { Form } from '@inertiajs/react';
-import BlockEditor from '@/components/cms/block-editor';
+import RichTextEditor from '@/components/cms/rich-text-editor';
+import { LocaleTabs } from '@/components/cms/locale-tabs';
 import MediaManager from '@/components/cms/media-manager';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { ContentBlock } from '@/lib/content-blocks';
-import { SUPPORTED_LOCALES, type WayfinderFormAction } from '@/lib/locales';
+import { type WayfinderFormAction } from '@/lib/locales';
 import { NativeSelect } from '@/components/ui/native-select';
 
 type TranslationFields = {
@@ -182,132 +183,72 @@ export default function PageForm({
                         </div>
                     </div>
 
-                    {SUPPORTED_LOCALES.map((locale) => (
-                        <div
-                            key={locale}
-                            className="grid gap-4 rounded-xl border p-6"
-                        >
-                            <h2 className="text-lg font-semibold uppercase">
-                                {locale}
-                            </h2>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor={`translations.${locale}.title`}>
-                                    Title
-                                </Label>
-                                <Input
-                                    id={`translations.${locale}.title`}
-                                    name={`translations[${locale}][title]`}
-                                    defaultValue={
-                                        page?.translations[locale]?.title ?? ''
-                                    }
-                                />
-                                <InputError
-                                    message={errors[`translations.${locale}.title`]}
-                                />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor={`translations.${locale}.slug`}>
-                                    Slug
-                                </Label>
-                                <Input
-                                    id={`translations.${locale}.slug`}
-                                    name={`translations[${locale}][slug]`}
-                                    defaultValue={
-                                        page?.translations[locale]?.slug ?? ''
-                                    }
-                                />
-                                <InputError
-                                    message={errors[`translations.${locale}.slug`]}
-                                />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label
-                                    htmlFor={`translations.${locale}.summary`}
-                                >
-                                    Summary
-                                </Label>
-                                <textarea
-                                    id={`translations.${locale}.summary`}
-                                    name={`translations[${locale}][summary]`}
-                                    defaultValue={
-                                        page?.translations[locale]?.summary ?? ''
-                                    }
-                                    className="border-input focus-visible:border-ring focus-visible:ring-ring/50 min-h-24 rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-[3px]"
-                                />
-                                <InputError
-                                    message={
-                                        errors[`translations.${locale}.summary`]
-                                    }
-                                />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <BlockEditor
-                                    name={`translations[${locale}][content_blocks]`}
-                                    label={`Content blocks (${locale.toUpperCase()})`}
-                                    initialValue={page?.translations[locale]?.content_blocks ?? undefined}
-                                    legacyContent={page?.translations[locale]?.content ?? ''}
-                                />
-                                <InputError
-                                    message={
-                                        errors[`translations.${locale}.content_blocks`]
-                                    }
-                                />
-                            </div>
-
-                            <div className="grid gap-2 md:grid-cols-2 md:gap-4">
+                    <LocaleTabs errors={errors}>
+                        {(locale) => (
+                            <>
                                 <div className="grid gap-2">
-                                    <Label
-                                        htmlFor={`translations.${locale}.seo_title`}
-                                    >
-                                        SEO title
-                                    </Label>
+                                    <Label htmlFor={`translations.${locale}.title`}>Title</Label>
                                     <Input
-                                        id={`translations.${locale}.seo_title`}
-                                        name={`translations[${locale}][seo_title]`}
-                                        defaultValue={
-                                            page?.translations[locale]
-                                                ?.seo_title ?? ''
-                                        }
+                                        id={`translations.${locale}.title`}
+                                        name={`translations[${locale}][title]`}
+                                        defaultValue={page?.translations[locale]?.title ?? ''}
                                     />
-                                    <InputError
-                                        message={
-                                            errors[
-                                                `translations.${locale}.seo_title`
-                                            ]
-                                        }
-                                    />
+                                    <InputError message={errors[`translations.${locale}.title`]} />
                                 </div>
 
                                 <div className="grid gap-2">
-                                    <Label
-                                        htmlFor={`translations.${locale}.seo_description`}
-                                    >
-                                        SEO description
-                                    </Label>
+                                    <Label htmlFor={`translations.${locale}.slug`}>Slug</Label>
+                                    <Input
+                                        id={`translations.${locale}.slug`}
+                                        name={`translations[${locale}][slug]`}
+                                        defaultValue={page?.translations[locale]?.slug ?? ''}
+                                    />
+                                    <InputError message={errors[`translations.${locale}.slug`]} />
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor={`translations.${locale}.summary`}>Summary</Label>
                                     <textarea
-                                        id={`translations.${locale}.seo_description`}
-                                        name={`translations[${locale}][seo_description]`}
-                                        defaultValue={
-                                            page?.translations[locale]
-                                                ?.seo_description ?? ''
-                                        }
+                                        id={`translations.${locale}.summary`}
+                                        name={`translations[${locale}][summary]`}
+                                        defaultValue={page?.translations[locale]?.summary ?? ''}
                                         className="border-input focus-visible:border-ring focus-visible:ring-ring/50 min-h-24 rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-[3px]"
                                     />
-                                    <InputError
-                                        message={
-                                            errors[
-                                                `translations.${locale}.seo_description`
-                                            ]
-                                        }
-                                    />
+                                    <InputError message={errors[`translations.${locale}.summary`]} />
                                 </div>
-                            </div>
-                        </div>
-                    ))}
+
+                                <RichTextEditor
+                                    name={`translations[${locale}][content]`}
+                                    label="Content"
+                                    initialHtml={page?.translations[locale]?.content ?? null}
+                                    fallbackBlocks={page?.translations[locale]?.content_blocks ?? null}
+                                />
+
+                                <div className="grid gap-2 md:grid-cols-2 md:gap-4">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor={`translations.${locale}.seo_title`}>SEO title</Label>
+                                        <Input
+                                            id={`translations.${locale}.seo_title`}
+                                            name={`translations[${locale}][seo_title]`}
+                                            defaultValue={page?.translations[locale]?.seo_title ?? ''}
+                                        />
+                                        <InputError message={errors[`translations.${locale}.seo_title`]} />
+                                    </div>
+
+                                    <div className="grid gap-2">
+                                        <Label htmlFor={`translations.${locale}.seo_description`}>SEO description</Label>
+                                        <textarea
+                                            id={`translations.${locale}.seo_description`}
+                                            name={`translations[${locale}][seo_description]`}
+                                            defaultValue={page?.translations[locale]?.seo_description ?? ''}
+                                            className="border-input focus-visible:border-ring focus-visible:ring-ring/50 min-h-24 rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-[3px]"
+                                        />
+                                        <InputError message={errors[`translations.${locale}.seo_description`]} />
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </LocaleTabs>
 
                     <div className="flex items-center gap-4">
                         <Button disabled={processing}>{submitLabel}</Button>

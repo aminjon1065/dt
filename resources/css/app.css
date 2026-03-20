@@ -132,6 +132,15 @@
     --sidebar-ring: oklch(0.439 0 0);
 }
 
+/* TipTap editor placeholder */
+.tiptap p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    float: left;
+    color: var(--muted-foreground);
+    pointer-events: none;
+    height: 0;
+}
+
 @layer base {
     * {
         @apply border-border;
