@@ -33,7 +33,7 @@ class PagePolicy
 
     public function publish(User $user): bool
     {
-        return $user->getAllPermissions()->contains('name', 'pages.publish');
+        return $user->can('pages.publish');
     }
 
     /**

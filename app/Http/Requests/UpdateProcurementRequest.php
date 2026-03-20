@@ -62,7 +62,7 @@ class UpdateProcurementRequest extends FormRequest
                 'integer',
                 Rule::in($procurement->getMedia('attachments')->pluck('id')->all()),
             ],
-            'translations' => ['required', 'array:en,tj,ru'],
+            'translations' => ['required', 'array:'.implode(',', config('app.supported_locales'))],
             'translations.en' => ['required', 'array'],
             'translations.tj' => ['required', 'array'],
             'translations.ru' => ['required', 'array'],
@@ -110,7 +110,7 @@ class UpdateProcurementRequest extends FormRequest
      */
     protected function allowedStatuses(): array
     {
-        if ($this->user()->getAllPermissions()->contains('name', 'procurements.publish')) {
+        if ($this->user()->can('publish', Procurement::class)) {
             return ['planned', 'open', 'closed', 'awarded', 'cancelled', 'archived'];
         }
 

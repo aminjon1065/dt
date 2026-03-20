@@ -49,7 +49,7 @@ class StoreProcurementRequest extends FormRequest
             'archived_at' => ['nullable', 'date', 'after_or_equal:published_at'],
             'attachments' => ['nullable', 'array'],
             'attachments.*' => ['file', 'max:20480'],
-            'translations' => ['required', 'array:en,tj,ru'],
+            'translations' => ['required', 'array:'.implode(',', config('app.supported_locales'))],
             'translations.en' => ['required', 'array'],
             'translations.tj' => ['required', 'array'],
             'translations.ru' => ['required', 'array'],
@@ -85,7 +85,7 @@ class StoreProcurementRequest extends FormRequest
      */
     protected function allowedStatuses(): array
     {
-        if ($this->user()->getAllPermissions()->contains('name', 'procurements.publish')) {
+        if ($this->user()->can('publish', Procurement::class)) {
             return ['planned', 'open', 'closed', 'awarded', 'cancelled', 'archived'];
         }
 

@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { ContentBlock } from '@/lib/content-blocks';
+import { SUPPORTED_LOCALES, type WayfinderFormAction } from '@/lib/locales';
+import { NativeSelect } from '@/components/ui/native-select';
 
 type TranslationFields = {
     title: string;
@@ -35,13 +37,11 @@ type ProcurementFormData = {
 };
 
 type Props = {
-    action: any;
+    action: WayfinderFormAction;
     availableStatuses: Array<{ value: string; label: string }>;
     procurement?: ProcurementFormData;
     submitLabel: string;
 };
-
-const locales: Array<'en' | 'tj' | 'ru'> = ['en', 'tj', 'ru'];
 
 export default function ProcurementForm({
     action,
@@ -79,7 +79,7 @@ export default function ProcurementForm({
                                 <Label htmlFor="procurement_type">
                                     Procurement type
                                 </Label>
-                                <select
+                                <NativeSelect
                                     id="procurement_type"
                                     name="procurement_type"
                                     defaultValue={
@@ -95,7 +95,7 @@ export default function ProcurementForm({
                                         Consulting
                                     </option>
                                     <option value="other">Other</option>
-                                </select>
+                                </NativeSelect>
                                 <InputError
                                     message={errors.procurement_type}
                                 />
@@ -105,7 +105,7 @@ export default function ProcurementForm({
                         <div className="grid gap-2 md:grid-cols-2 md:gap-4">
                             <div className="grid gap-2">
                                 <Label htmlFor="status">Status</Label>
-                                <select
+                                <NativeSelect
                                     id="status"
                                     name="status"
                                     defaultValue={
@@ -118,7 +118,7 @@ export default function ProcurementForm({
                                             {statusOption.label}
                                         </option>
                                     ))}
-                                </select>
+                                </NativeSelect>
                                 <InputError message={errors.status} />
                             </div>
 
@@ -180,7 +180,7 @@ export default function ProcurementForm({
                         </div>
                     </div>
 
-                    {locales.map((locale) => (
+                    {SUPPORTED_LOCALES.map((locale) => (
                         <div
                             key={locale}
                             className="grid gap-4 rounded-xl border p-6"

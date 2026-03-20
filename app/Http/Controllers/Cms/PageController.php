@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers\Cms;
 
+use App\Enums\ContentStatus;
+use App\Http\Controllers\Concerns\HasCmsWorkflow;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\FilterPagesRequest;
 use App\Http\Requests\StorePageRequest;
 use App\Http\Requests\UpdatePageRequest;
 use App\Http\Requests\UpdatePageWorkflowRequest;
-use App\Models\AuditLog;
 use App\Models\Page;
 use App\Models\User;
 use App\Support\ContentBlocks\ContentBlockRenderer;
@@ -19,6 +20,8 @@ use Inertia\Response;
 
 class PageController extends Controller
 {
+    use HasCmsWorkflow;
+
     /**
      * Display a listing of the resource.
      */
@@ -79,7 +82,7 @@ class PageController extends Controller
      */
     public function store(StorePageRequest $request): RedirectResponse
     {
-        $this->ensurePublishableStatus($request);
+        $this->ensurePublishableStatus($request, Page::class);
 
         $page = DB::transaction(function () use ($request): Page {
             $page = Page::query()->create([
@@ -144,7 +147,7 @@ class PageController extends Controller
             ],
             'parentPages' => $this->parentPages($page),
             'availableStatuses' => $this->availableStatuses(request()->user()),
-            'canPublish' => request()->user()?->getAllPermissions()->contains('name', 'pages.publish') ?? false,
+            'canPublish' => request()->user()?->can('publish', Page::class) ?? false,
             'status' => session('status'),
         ]);
     }
@@ -154,7 +157,7 @@ class PageController extends Controller
      */
     public function update(UpdatePageRequest $request, Page $page): RedirectResponse
     {
-        $this->ensurePublishableStatus($request);
+        $this->ensurePublishableStatus($request, Page::class);
 
         DB::transaction(function () use ($request, $page): void {
             $oldValues = $page->fresh()->toArray();
@@ -196,20 +199,16 @@ class PageController extends Controller
 
     public function workflow(UpdatePageWorkflowRequest $request, Page $page): RedirectResponse
     {
-        $pageId = $request->route('page') instanceof Page
-            ? $request->route('page')->getKey()
-            : $request->route('page');
-
-        $page = Page::query()->findOrFail($pageId);
+        $page = $page->exists ? $page : Page::query()->findOrFail($request->route('page'));
         $oldValues = $page->toArray();
         $status = $request->string('status')->toString();
 
         Page::query()->whereKey($page->getKey())->update([
             'status' => $status,
-            'published_at' => $status === 'published'
+            'published_at' => $status === ContentStatus::Published->value
                 ? ($page->published_at ?? now())
                 : $page->published_at,
-            'archived_at' => $status === 'archived' ? now() : null,
+            'archived_at' => $status === ContentStatus::Archived->value ? now() : null,
             'updated_by' => $request->user()->id,
         ]);
 
@@ -244,20 +243,9 @@ class PageController extends Controller
     {
         if ($request->boolean('remove_cover')) {
             $page->clearMediaCollection('cover');
-        }
-
-        if ($request->hasFile('cover')) {
+        } elseif ($request->hasFile('cover')) {
             $page->clearMediaCollection('cover');
             $page->addMediaFromRequest('cover')->toMediaCollection('cover');
-        }
-    }
-
-    protected function ensurePublishableStatus(Request $request): void
-    {
-        if (
-            in_array($request->input('status'), ['published', 'archived'], true)
-        ) {
-            $this->authorize('publish', Page::class);
         }
     }
 
@@ -283,9 +271,9 @@ class PageController extends Controller
      */
     protected function availableStatuses(?User $user): array
     {
-        $statuses = $user?->getAllPermissions()->contains('name', 'pages.publish')
-            ? ['draft', 'in_review', 'published', 'archived']
-            : ['draft', 'in_review'];
+        $statuses = $user?->can('publish', Page::class)
+            ? ContentStatus::values()
+            : ContentStatus::editableValues();
 
         return collect($statuses)
             ->map(fn (string $status): array => [
@@ -293,24 +281,5 @@ class PageController extends Controller
                 'label' => str($status)->replace('_', ' ')->title()->value(),
             ])
             ->all();
-    }
-
-    protected function recordAudit(
-        Request $request,
-        string $event,
-        Page $page,
-        ?array $oldValues,
-        ?array $newValues,
-    ): void {
-        AuditLog::query()->create([
-            'user_id' => $request->user()?->id,
-            'event' => $event,
-            'auditable_type' => $page->getMorphClass(),
-            'auditable_id' => $page->id,
-            'old_values' => $oldValues,
-            'new_values' => $newValues,
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-        ]);
     }
 }

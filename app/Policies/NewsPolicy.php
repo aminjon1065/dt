@@ -33,7 +33,7 @@ class NewsPolicy
 
     public function publish(User $user): bool
     {
-        return $user->getAllPermissions()->contains('name', 'news.publish');
+        return $user->can('news.publish');
     }
 
     /**

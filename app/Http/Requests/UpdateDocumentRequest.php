@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\ContentStatus;
 use App\Models\Document;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -54,7 +55,7 @@ class UpdateDocumentRequest extends FormRequest
             'remove_file' => ['nullable', 'boolean'],
             'tag_ids' => ['nullable', 'array'],
             'tag_ids.*' => ['integer', 'exists:document_tags,id'],
-            'translations' => ['required', 'array:en,tj,ru'],
+            'translations' => ['required', 'array:'.implode(',', config('app.supported_locales'))],
             'translations.en' => ['required', 'array'],
             'translations.tj' => ['required', 'array'],
             'translations.ru' => ['required', 'array'],
@@ -102,10 +103,10 @@ class UpdateDocumentRequest extends FormRequest
      */
     protected function allowedStatuses(): array
     {
-        if ($this->user()->getAllPermissions()->contains('name', 'documents.publish')) {
-            return ['draft', 'in_review', 'published', 'archived'];
+        if ($this->user()->can('publish', Document::class)) {
+            return ContentStatus::values();
         }
 
-        return ['draft', 'in_review'];
+        return ContentStatus::editableValues();
     }
 }

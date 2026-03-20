@@ -40,7 +40,7 @@ class UpdateStaffMemberRequest extends FormRequest
             'sort_order' => ['required', 'integer', 'min:0'],
             'photo' => ['nullable', 'image', 'max:10240'],
             'remove_photo' => ['nullable', 'boolean'],
-            'translations' => ['required', 'array:en,tj,ru'],
+            'translations' => ['required', 'array:'.implode(',', config('app.supported_locales'))],
             'translations.en' => ['required', 'array'],
             'translations.tj' => ['required', 'array'],
             'translations.ru' => ['required', 'array'],

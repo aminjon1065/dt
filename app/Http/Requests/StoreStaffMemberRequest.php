@@ -36,7 +36,7 @@ class StoreStaffMemberRequest extends FormRequest
             'archived_at' => ['nullable', 'date'],
             'sort_order' => ['required', 'integer', 'min:0'],
             'photo' => ['nullable', 'image', 'max:10240'],
-            'translations' => ['required', 'array:en,tj,ru'],
+            'translations' => ['required', 'array:'.implode(',', config('app.supported_locales'))],
             'translations.en' => ['required', 'array'],
             'translations.tj' => ['required', 'array'],
             'translations.ru' => ['required', 'array'],

@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers\Cms;
 
+use App\Http\Controllers\Concerns\HasCmsWorkflow;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\FilterProcurementsRequest;
 use App\Http\Requests\StoreProcurementRequest;
 use App\Http\Requests\UpdateProcurementRequest;
 use App\Http\Requests\UpdateProcurementWorkflowRequest;
-use App\Models\AuditLog;
 use App\Models\Procurement;
 use App\Models\ProcurementTranslation;
 use App\Models\User;
@@ -20,6 +20,8 @@ use Inertia\Response;
 
 class ProcurementController extends Controller
 {
+    use HasCmsWorkflow;
+
     public function index(FilterProcurementsRequest $request): Response
     {
         $this->authorize('viewAny', Procurement::class);
@@ -122,7 +124,7 @@ class ProcurementController extends Controller
                 ),
             ],
             'availableStatuses' => $this->availableStatuses(request()->user()),
-            'canPublish' => request()->user()?->getAllPermissions()->contains('name', 'procurements.publish') ?? false,
+            'canPublish' => request()->user()?->can('publish', Procurement::class) ?? false,
             'status' => session('status'),
         ]);
     }
@@ -169,11 +171,7 @@ class ProcurementController extends Controller
 
     public function workflow(UpdateProcurementWorkflowRequest $request, Procurement $procurement): RedirectResponse
     {
-        $procurementId = $request->route('procurement') instanceof Procurement
-            ? $request->route('procurement')->getKey()
-            : $request->route('procurement');
-
-        $procurement = Procurement::query()->findOrFail($procurementId);
+        $procurement = $procurement->exists ? $procurement : Procurement::query()->findOrFail($request->route('procurement'));
         $oldValues = $procurement->toArray();
         $status = $request->string('status')->toString();
 
@@ -250,7 +248,7 @@ class ProcurementController extends Controller
      */
     protected function availableStatuses(?User $user): array
     {
-        $statuses = $user?->getAllPermissions()->contains('name', 'procurements.publish')
+        $statuses = $user?->can('publish', Procurement::class)
             ? ['planned', 'open', 'closed', 'awarded', 'cancelled', 'archived']
             : ['planned'];
 
@@ -260,24 +258,5 @@ class ProcurementController extends Controller
                 'label' => str($status)->replace('_', ' ')->title()->value(),
             ])
             ->all();
-    }
-
-    protected function recordAudit(
-        Request $request,
-        string $event,
-        Procurement $procurement,
-        ?array $oldValues,
-        ?array $newValues,
-    ): void {
-        AuditLog::query()->create([
-            'user_id' => $request->user()?->id,
-            'event' => $event,
-            'auditable_type' => $procurement->getMorphClass(),
-            'auditable_id' => $procurement->id,
-            'old_values' => $oldValues,
-            'new_values' => $newValues,
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-        ]);
     }
 }

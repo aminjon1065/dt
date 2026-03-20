@@ -3,6 +3,8 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import type { WayfinderFormAction } from '@/lib/locales';
+import { NativeSelect } from '@/components/ui/native-select';
 
 type UserOption = {
     id: number;
@@ -32,7 +34,7 @@ type SubmissionFormData = {
 };
 
 type Props = {
-    action: any;
+    action: WayfinderFormAction;
     users: UserOption[];
     submission?: SubmissionFormData;
     submitLabel: string;
@@ -72,7 +74,7 @@ export default function GrmSubmissionForm({
 
                             <div className="grid gap-2">
                                 <Label htmlFor="status">Status</Label>
-                                <select
+                                <NativeSelect
                                     id="status"
                                     name="status"
                                     defaultValue={submission?.status ?? 'new'}
@@ -87,7 +89,7 @@ export default function GrmSubmissionForm({
                                     </option>
                                     <option value="resolved">Resolved</option>
                                     <option value="closed">Closed</option>
-                                </select>
+                                </NativeSelect>
                                 <InputError message={errors.status} />
                             </div>
                         </div>
@@ -191,7 +193,7 @@ export default function GrmSubmissionForm({
 
                             <div className="grid gap-2">
                                 <Label htmlFor="assigned_to">Assigned to</Label>
-                                <select
+                                <NativeSelect
                                     id="assigned_to"
                                     name="assigned_to"
                                     defaultValue={submission?.assigned_to ?? ''}
@@ -203,7 +205,7 @@ export default function GrmSubmissionForm({
                                             {user.name}
                                         </option>
                                     ))}
-                                </select>
+                                </NativeSelect>
                                 <InputError message={errors.assigned_to} />
                             </div>
                         </div>

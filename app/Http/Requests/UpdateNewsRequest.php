@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\ContentStatus;
 use App\Models\News;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -48,7 +49,7 @@ class UpdateNewsRequest extends FormRequest
             'remove_cover' => ['nullable', 'boolean'],
             'category_ids' => ['nullable', 'array'],
             'category_ids.*' => ['integer', 'exists:news_categories,id'],
-            'translations' => ['required', 'array:en,tj,ru'],
+            'translations' => ['required', 'array:'.implode(',', config('app.supported_locales'))],
             'translations.en' => ['required', 'array'],
             'translations.tj' => ['required', 'array'],
             'translations.ru' => ['required', 'array'],
@@ -96,10 +97,10 @@ class UpdateNewsRequest extends FormRequest
      */
     protected function allowedStatuses(): array
     {
-        if ($this->user()->getAllPermissions()->contains('name', 'news.publish')) {
-            return ['draft', 'in_review', 'published', 'archived'];
+        if ($this->user()->can('publish', News::class)) {
+            return ContentStatus::values();
         }
 
-        return ['draft', 'in_review'];
+        return ContentStatus::editableValues();
     }
 }

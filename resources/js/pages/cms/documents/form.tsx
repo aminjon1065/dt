@@ -7,6 +7,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { ContentBlock } from '@/lib/content-blocks';
+import { SUPPORTED_LOCALES, type WayfinderFormAction } from '@/lib/locales';
+import { NativeSelect } from '@/components/ui/native-select';
 
 type TranslationFields = {
     title: string;
@@ -41,15 +43,13 @@ type SelectOption = {
 };
 
 type Props = {
-    action: any;
+    action: WayfinderFormAction;
     categories: SelectOption[];
     tags: SelectOption[];
     availableStatuses: Array<{ value: string; label: string }>;
     document?: DocumentFormData;
     submitLabel: string;
 };
-
-const locales: Array<'en' | 'tj' | 'ru'> = ['en', 'tj', 'ru'];
 
 export default function DocumentForm({
     action,
@@ -65,7 +65,7 @@ export default function DocumentForm({
             options={{ preserveScroll: true }}
             className="space-y-8"
         >
-            {({ errors, processing }) => (
+            {({ errors, processing, recentlySuccessful }) => (
                 <>
                     <div className="grid gap-6 rounded-xl border p-6">
                         <div className="grid gap-2 md:grid-cols-2 md:gap-4">
@@ -73,7 +73,7 @@ export default function DocumentForm({
                                 <Label htmlFor="document_category_id">
                                     Category
                                 </Label>
-                                <select
+                                <NativeSelect
                                     id="document_category_id"
                                     name="document_category_id"
                                     defaultValue={
@@ -92,7 +92,7 @@ export default function DocumentForm({
                                             {category.name}
                                         </option>
                                     ))}
-                                </select>
+                                </NativeSelect>
                                 <InputError
                                     message={errors.document_category_id}
                                 />
@@ -100,7 +100,7 @@ export default function DocumentForm({
 
                             <div className="grid gap-2">
                                 <Label htmlFor="status">Status</Label>
-                                <select
+                                <NativeSelect
                                     id="status"
                                     name="status"
                                     defaultValue={document?.status ?? 'draft'}
@@ -111,7 +111,7 @@ export default function DocumentForm({
                                             {statusOption.label}
                                         </option>
                                     ))}
-                                </select>
+                                </NativeSelect>
                                 <InputError message={errors.status} />
                             </div>
                         </div>
@@ -209,7 +209,7 @@ export default function DocumentForm({
                         </div>
                     </div>
 
-                    {locales.map((locale) => (
+                    {SUPPORTED_LOCALES.map((locale) => (
                         <div
                             key={locale}
                             className="grid gap-4 rounded-xl border p-6"
@@ -329,7 +329,12 @@ export default function DocumentForm({
                         </div>
                     ))}
 
-                    <Button disabled={processing}>{submitLabel}</Button>
+                    <div className="flex items-center gap-4">
+                        <Button disabled={processing}>{submitLabel}</Button>
+                        {recentlySuccessful && (
+                            <p className="text-sm text-neutral-600">Saved</p>
+                        )}
+                    </div>
                 </>
             )}
         </Form>

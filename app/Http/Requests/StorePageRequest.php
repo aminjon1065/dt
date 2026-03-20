@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\ContentStatus;
 use App\Models\Page;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -54,7 +55,7 @@ class StorePageRequest extends FormRequest
             'sort_order' => ['required', 'integer', 'min:0'],
             'is_home' => ['required', 'boolean'],
             'cover' => ['nullable', 'image', 'max:10240'],
-            'translations' => ['required', 'array:en,tj,ru'],
+            'translations' => ['required', 'array:'.implode(',', config('app.supported_locales'))],
             'translations.en' => ['required', 'array'],
             'translations.tj' => ['required', 'array'],
             'translations.ru' => ['required', 'array'],
@@ -96,10 +97,10 @@ class StorePageRequest extends FormRequest
      */
     protected function allowedStatuses(): array
     {
-        if ($this->user()->getAllPermissions()->contains('name', 'pages.publish')) {
-            return ['draft', 'in_review', 'published', 'archived'];
+        if ($this->user()->can('publish', Page::class)) {
+            return ContentStatus::values();
         }
 
-        return ['draft', 'in_review'];
+        return ContentStatus::editableValues();
     }
 }

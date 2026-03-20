@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SUPPORTED_LOCALES, type WayfinderFormAction } from '@/lib/locales';
+import { NativeSelect } from '@/components/ui/native-select';
 
 type TranslationFields = {
     name: string;
@@ -41,13 +43,11 @@ type ParentStaffMember = {
 };
 
 type Props = {
-    action: any;
+    action: WayfinderFormAction;
     parentStaffMembers: ParentStaffMember[];
     staffMember?: StaffMemberFormData;
     submitLabel: string;
 };
-
-const locales: Array<'en' | 'tj' | 'ru'> = ['en', 'tj', 'ru'];
 
 export default function StaffMemberForm({
     action,
@@ -57,12 +57,12 @@ export default function StaffMemberForm({
 }: Props) {
     return (
         <Form {...action} options={{ preserveScroll: true }} className="space-y-8">
-            {({ errors, processing }) => (
+            {({ errors, processing, recentlySuccessful }) => (
                 <>
                     <div className="grid gap-6 rounded-xl border p-6">
                         <div className="grid gap-2">
                             <Label htmlFor="parent_id">Manager / parent</Label>
-                            <select
+                            <NativeSelect
                                 id="parent_id"
                                 name="parent_id"
                                 defaultValue={staffMember?.parent_id ?? ''}
@@ -74,7 +74,7 @@ export default function StaffMemberForm({
                                         {parentStaffMember.name}
                                     </option>
                                 ))}
-                            </select>
+                            </NativeSelect>
                             <InputError message={errors.parent_id} />
                         </div>
 
@@ -105,7 +105,7 @@ export default function StaffMemberForm({
 
                             <div className="grid gap-2">
                                 <Label htmlFor="status">Status</Label>
-                                <select
+                                <NativeSelect
                                     id="status"
                                     name="status"
                                     defaultValue={staffMember?.status ?? 'draft'}
@@ -114,7 +114,7 @@ export default function StaffMemberForm({
                                     <option value="draft">Draft</option>
                                     <option value="published">Published</option>
                                     <option value="archived">Archived</option>
-                                </select>
+                                </NativeSelect>
                                 <InputError message={errors.status} />
                             </div>
 
@@ -193,7 +193,7 @@ export default function StaffMemberForm({
                         </div>
                     </div>
 
-                    {locales.map((locale) => (
+                    {SUPPORTED_LOCALES.map((locale) => (
                         <div key={locale} className="grid gap-4 rounded-xl border p-6">
                             <h2 className="text-lg font-semibold uppercase">{locale}</h2>
 
@@ -263,7 +263,12 @@ export default function StaffMemberForm({
                         </div>
                     ))}
 
-                    <Button disabled={processing}>{submitLabel}</Button>
+                    <div className="flex items-center gap-4">
+                        <Button disabled={processing}>{submitLabel}</Button>
+                        {recentlySuccessful && (
+                            <p className="text-sm text-neutral-600">Saved</p>
+                        )}
+                    </div>
                 </>
             )}
         </Form>

@@ -7,6 +7,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { ContentBlock } from '@/lib/content-blocks';
+import { SUPPORTED_LOCALES, type WayfinderFormAction } from '@/lib/locales';
+import { NativeSelect } from '@/components/ui/native-select';
 
 type TranslationFields = {
     title: string;
@@ -39,14 +41,12 @@ type Category = {
 };
 
 type Props = {
-    action: any;
+    action: WayfinderFormAction;
     categories: Category[];
     availableStatuses: Array<{ value: string; label: string }>;
     newsItem?: NewsFormData;
     submitLabel: string;
 };
-
-const locales: Array<'en' | 'tj' | 'ru'> = ['en', 'tj', 'ru'];
 
 export default function NewsForm({
     action,
@@ -67,7 +67,7 @@ export default function NewsForm({
                         <div className="grid gap-2 md:grid-cols-2 md:gap-4">
                             <div className="grid gap-2">
                                 <Label htmlFor="status">Status</Label>
-                                <select
+                                <NativeSelect
                                     id="status"
                                     name="status"
                                     defaultValue={newsItem?.status ?? 'draft'}
@@ -78,7 +78,7 @@ export default function NewsForm({
                                             {statusOption.label}
                                         </option>
                                     ))}
-                                </select>
+                                </NativeSelect>
                                 <InputError message={errors.status} />
                             </div>
 
@@ -163,7 +163,7 @@ export default function NewsForm({
                         </div>
                     </div>
 
-                    {locales.map((locale) => (
+                    {SUPPORTED_LOCALES.map((locale) => (
                         <div
                             key={locale}
                             className="grid gap-4 rounded-xl border p-6"

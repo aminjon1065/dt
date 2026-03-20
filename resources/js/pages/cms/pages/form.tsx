@@ -7,6 +7,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { ContentBlock } from '@/lib/content-blocks';
+import { SUPPORTED_LOCALES, type WayfinderFormAction } from '@/lib/locales';
+import { NativeSelect } from '@/components/ui/native-select';
 
 type TranslationFields = {
     title: string;
@@ -41,14 +43,12 @@ type ParentPage = {
 };
 
 type Props = {
-    action: any;
+    action: WayfinderFormAction;
     parentPages: ParentPage[];
     availableStatuses: Array<{ value: string; label: string }>;
     page?: PageFormData;
     submitLabel: string;
 };
-
-const locales: Array<'en' | 'tj' | 'ru'> = ['en', 'tj', 'ru'];
 
 export default function PageForm({
     action,
@@ -68,7 +68,7 @@ export default function PageForm({
                     <div className="grid gap-6 rounded-xl border p-6">
                         <div className="grid gap-2">
                             <Label htmlFor="parent_id">Parent page</Label>
-                            <select
+                            <NativeSelect
                                 id="parent_id"
                                 name="parent_id"
                                 defaultValue={page?.parent_id ?? ''}
@@ -83,7 +83,7 @@ export default function PageForm({
                                         {parentPage.title}
                                     </option>
                                 ))}
-                            </select>
+                            </NativeSelect>
                             <InputError message={errors.parent_id} />
                         </div>
 
@@ -101,7 +101,7 @@ export default function PageForm({
 
                             <div className="grid gap-2">
                                 <Label htmlFor="status">Status</Label>
-                                <select
+                                <NativeSelect
                                     id="status"
                                     name="status"
                                     defaultValue={page?.status ?? 'draft'}
@@ -112,7 +112,7 @@ export default function PageForm({
                                             {statusOption.label}
                                         </option>
                                     ))}
-                                </select>
+                                </NativeSelect>
                                 <InputError message={errors.status} />
                             </div>
 
@@ -182,7 +182,7 @@ export default function PageForm({
                         </div>
                     </div>
 
-                    {locales.map((locale) => (
+                    {SUPPORTED_LOCALES.map((locale) => (
                         <div
                             key={locale}
                             className="grid gap-4 rounded-xl border p-6"

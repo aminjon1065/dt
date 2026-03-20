@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import type { WayfinderFormAction } from '@/lib/locales';
+import { NativeSelect } from '@/components/ui/native-select';
 
 type MenuItemData = {
     id?: number;
@@ -27,7 +29,7 @@ type MenuFormData = {
 };
 
 type Props = {
-    action: any;
+    action: WayfinderFormAction;
     menu?: MenuFormData;
     submitLabel: string;
 };
@@ -163,7 +165,7 @@ export default function MenuForm({ action, menu, submitLabel }: Props) {
                                         >
                                             Parent item
                                         </Label>
-                                        <select
+                                        <NativeSelect
                                             id={`items.${index}.parent_item_key`}
                                             name={`items[${index}][parent_item_key]`}
                                             defaultValue={
@@ -191,7 +193,7 @@ export default function MenuForm({ action, menu, submitLabel }: Props) {
                                                             candidate.item_key}
                                                     </option>
                                                 ))}
-                                        </select>
+                                        </NativeSelect>
                                         <InputError
                                             message={
                                                 errors[
@@ -207,7 +209,7 @@ export default function MenuForm({ action, menu, submitLabel }: Props) {
                                         <Label htmlFor={`items.${index}.locale`}>
                                             Locale
                                         </Label>
-                                        <select
+                                        <NativeSelect
                                             id={`items.${index}.locale`}
                                             name={`items[${index}][locale]`}
                                             defaultValue={item.locale ?? ''}
@@ -217,7 +219,7 @@ export default function MenuForm({ action, menu, submitLabel }: Props) {
                                             <option value="en">English</option>
                                             <option value="tj">Tajik</option>
                                             <option value="ru">Russian</option>
-                                        </select>
+                                        </NativeSelect>
                                     </div>
                                     <div className="grid gap-2">
                                         <Label

@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\ContentStatus;
+use App\Models\Document;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -11,17 +13,17 @@ class UpdateDocumentWorkflowRequest extends FormRequest
     {
         $status = $this->string('status')->toString();
 
-        if (in_array($status, ['published', 'archived'], true)) {
-            return $this->user()->getAllPermissions()->contains('name', 'documents.publish');
+        if (in_array($status, [ContentStatus::Published->value, ContentStatus::Archived->value], true)) {
+            return $this->user()->can('publish', Document::class);
         }
 
-        return $this->user()->getAllPermissions()->contains('name', 'documents.update');
+        return $this->user()->can('documents.update');
     }
 
     public function rules(): array
     {
         return [
-            'status' => ['required', Rule::in(['draft', 'in_review', 'published', 'archived'])],
+            'status' => ['required', Rule::enum(ContentStatus::class)],
         ];
     }
 }

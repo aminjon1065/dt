@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers\Cms;
 
+use App\Enums\ContentStatus;
+use App\Http\Controllers\Concerns\HasCmsWorkflow;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\FilterDocumentsRequest;
 use App\Http\Requests\StoreDocumentRequest;
 use App\Http\Requests\UpdateDocumentRequest;
 use App\Http\Requests\UpdateDocumentWorkflowRequest;
-use App\Models\AuditLog;
 use App\Models\Document;
 use App\Models\DocumentCategory;
 use App\Models\DocumentTag;
@@ -22,6 +23,8 @@ use Inertia\Response;
 
 class DocumentController extends Controller
 {
+    use HasCmsWorkflow;
+
     public function index(FilterDocumentsRequest $request): Response
     {
         $this->authorize('viewAny', Document::class);
@@ -75,7 +78,7 @@ class DocumentController extends Controller
 
     public function store(StoreDocumentRequest $request): RedirectResponse
     {
-        $this->ensurePublishableStatus($request);
+        $this->ensurePublishableStatus($request, Document::class);
 
         $document = DB::transaction(function () use ($request): Document {
             $document = Document::query()->create([
@@ -138,7 +141,7 @@ class DocumentController extends Controller
             'categories' => $this->categories(),
             'tags' => $this->tags(),
             'availableStatuses' => $this->availableStatuses(request()->user()),
-            'canPublish' => request()->user()?->getAllPermissions()->contains('name', 'documents.publish') ?? false,
+            'canPublish' => request()->user()?->can('publish', Document::class) ?? false,
             'status' => session('status'),
         ]);
     }
@@ -147,7 +150,7 @@ class DocumentController extends Controller
         UpdateDocumentRequest $request,
         Document $document,
     ): RedirectResponse {
-        $this->ensurePublishableStatus($request);
+        $this->ensurePublishableStatus($request, Document::class);
 
         DB::transaction(function () use ($request, $document): void {
             $oldValues = $document->fresh()->toArray();
@@ -186,20 +189,16 @@ class DocumentController extends Controller
 
     public function workflow(UpdateDocumentWorkflowRequest $request, Document $document): RedirectResponse
     {
-        $documentId = $request->route('document') instanceof Document
-            ? $request->route('document')->getKey()
-            : $request->route('document');
-
-        $document = Document::query()->findOrFail($documentId);
+        $document = $document->exists ? $document : Document::query()->findOrFail($request->route('document'));
         $oldValues = $document->toArray();
         $status = $request->string('status')->toString();
 
         Document::query()->whereKey($document->getKey())->update([
             'status' => $status,
-            'published_at' => $status === 'published'
+            'published_at' => $status === ContentStatus::Published->value
                 ? ($document->published_at ?? now())
                 : $document->published_at,
-            'archived_at' => $status === 'archived' ? now() : null,
+            'archived_at' => $status === ContentStatus::Archived->value ? now() : null,
             'updated_by' => $request->user()->id,
         ]);
 
@@ -234,20 +233,9 @@ class DocumentController extends Controller
     {
         if ($request->boolean('remove_file')) {
             $document->clearMediaCollection('documents');
-        }
-
-        if ($request->hasFile('file')) {
+        } elseif ($request->hasFile('file')) {
             $document->clearMediaCollection('documents');
             $document->addMediaFromRequest('file')->toMediaCollection('documents');
-        }
-    }
-
-    protected function ensurePublishableStatus(Request $request): void
-    {
-        if (
-            in_array($request->input('status'), ['published', 'archived'], true)
-        ) {
-            $this->authorize('publish', Document::class);
         }
     }
 
@@ -289,9 +277,9 @@ class DocumentController extends Controller
      */
     protected function availableStatuses(?User $user): array
     {
-        $statuses = $user?->getAllPermissions()->contains('name', 'documents.publish')
-            ? ['draft', 'in_review', 'published', 'archived']
-            : ['draft', 'in_review'];
+        $statuses = $user?->can('publish', Document::class)
+            ? ContentStatus::values()
+            : ContentStatus::editableValues();
 
         return collect($statuses)
             ->map(fn (string $status): array => [
@@ -299,24 +287,5 @@ class DocumentController extends Controller
                 'label' => str($status)->replace('_', ' ')->title()->value(),
             ])
             ->all();
-    }
-
-    protected function recordAudit(
-        Request $request,
-        string $event,
-        Document $document,
-        ?array $oldValues,
-        ?array $newValues,
-    ): void {
-        AuditLog::query()->create([
-            'user_id' => $request->user()?->id,
-            'event' => $event,
-            'auditable_type' => $document->getMorphClass(),
-            'auditable_id' => $document->id,
-            'old_values' => $oldValues,
-            'new_values' => $newValues,
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-        ]);
     }
 }
